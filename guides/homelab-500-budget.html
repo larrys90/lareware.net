@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Building a Homelab on a $500 Budget (2026 Guide) — Lareware</title>
+  <meta name="description" content="Build a real homelab for under $500 in 2026. Verified current pricing, hardware picks based on user feedback, hypervisor setup, and networking — from bare metal to running services in a weekend.">
+  <link rel="canonical" href="https://lareware.net/guides/homelab-500-budget.html">
+  <meta property="og:title" content="Building a Homelab on a $500 Budget (2026)">
+  <meta property="og:description" content="Verified current pricing, hardware picks based on user feedback, hypervisor setup, and networking.">
+  <meta property="og:type" content="article">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+<div id="nav"></div>
+
+<article>
+  <header class="article-header">
+    <div class="guide-cat">Infrastructure</div>
+    <h1>Building a Homelab on a $500 Budget</h1>
+    <div class="article-meta">
+      <time datetime="2026-05-15">May 15, 2026</time>
+      <span>· 16 min read</span>
+    </div>
+  </header>
+
+  <div class="article-body">
+
+    <div class="toc">
+      <div class="toc-label">// contents</div>
+      <ul>
+        <li><a href="#why">Why Build a Homelab?</a></li>
+        <li><a href="#ram-reality">A Quick Note on RAM Prices in 2026</a></li>
+        <li><a href="#budget">The $500 Budget Breakdown</a></li>
+        <li><a href="#compute">The Compute Node: Beelink EQ14</a></li>
+        <li><a href="#networking">Networking Gear</a></li>
+        <li><a href="#power">Power and UPS</a></li>
+        <li><a href="#hypervisor">Hypervisor: Proxmox Setup</a></li>
+        <li><a href="#first-vms">Your First VMs and Containers</a></li>
+        <li><a href="#networking-setup">Network Configuration</a></li>
+        <li><a href="#monitoring">Monitoring Stack</a></li>
+        <li><a href="#services">Essential Homelab Services</a></li>
+        <li><a href="#mistakes">Common Mistakes to Avoid</a></li>
+        <li><a href="#upgrades">Where to Go From Here</a></li>
+      </ul>
+    </div>
+
+    <div class="ad-placeholder">[ ad placement ]</div>
+
+    <p>$500 in 2026 buys you a real homelab — not a toy. The right components get you a low-power hypervisor running Proxmox, room for several lightweight virtual machines and a dozen Docker containers, network segmentation with VLANs, and a proper monitoring stack. The build below uses currently-available hardware at currently-verified prices, with picks chosen for strong real-world user feedback in the homelab community.</p>
+
+    <p>If you're starting from scratch, this guide walks you through exactly what to buy, why each piece matters, and how to assemble it into a working system in a weekend.</p>
+
+    <h2 id="why">Why Build a Homelab?</h2>
+
+    <p>A homelab is a personal IT environment where you can experiment, learn, and run services without risking production systems. For sysadmins and IT professionals, it's the single best career investment you can make outside of certifications.</p>
+
+    <p>Here's what a homelab lets you do that reading documentation never will:</p>
+
+    <ul>
+      <li><strong>Break things safely.</strong> Misconfigure a firewall rule, corrupt a disk, crash a cluster — then fix it. That muscle memory is worth more than any textbook.</li>
+      <li><strong>Run real services.</strong> Host your own DNS, VPN, media server, password manager, wiki, and monitoring stack. You'll understand these tools at a level that "I used it at work" never provides.</li>
+      <li><strong>Practice for certifications.</strong> Studying for the RHCSA, AWS SAA, or CCNA? Having hardware to practice on makes the difference between memorizing answers and understanding concepts.</li>
+      <li><strong>Self-host and own your data.</strong> Replace cloud subscriptions with services you control. Bitwarden, Nextcloud, Plex, Pi-hole, Gitea — the list of excellent self-hosted software is enormous.</li>
+    </ul>
+
+    <h2 id="ram-reality">A Quick Note on RAM Prices in 2026</h2>
+
+    <p>Before we get into the build: DDR5 RAM is expensive right now. AI-driven memory demand has pushed 32GB DDR5 SO-DIMM kits well above $300 — far higher than they were even a year ago. This single factor reshapes what a "$500 homelab" looks like in 2026.</p>
+
+    <p>The smart play is to pick a mini PC that <em>includes</em> RAM and storage in the box rather than buying a "barebone" and adding components separately. That's what this guide does. If RAM prices normalize later, you can always upgrade — but you don't need 32GB to learn meaningful skills. Plenty of homelabbers run productive setups on 16GB.</p>
+
+    <h2 id="budget">The $500 Budget Breakdown</h2>
+
+    <p>Here's the build, with current US prices verified in May 2026:</p>
+
+    <table>
+      <thead>
+        <tr><th>Component</th><th>Pick</th><th>Price</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Compute node</td><td>Beelink EQ14 (Intel N150, 16GB, 500GB-1TB SSD)</td><td>$190–230</td></tr>
+        <tr><td>Managed switch</td><td>TP-Link TL-SG108E 8-port managed</td><td>$50–70</td></tr>
+        <tr><td>Ethernet cables</td><td>Cat6 patch cables (5-pack)</td><td>$12–18</td></tr>
+        <tr><td>USB flash drive</td><td>For Proxmox installer (16GB+)</td><td>$8–10</td></tr>
+        <tr><td>UPS</td><td>APC BE600M1 or CyberPower EC650LCD (650VA)</td><td>$70–90</td></tr>
+        <tr><td>External backup drive</td><td>1TB USB 3.0 portable SSD</td><td>$80–110</td></tr>
+        <tr><td colspan="2"><strong>Total</strong></td><td><strong>$410–528</strong></td></tr>
+      </tbody>
+    </table>
+
+    <p>The total lands right around the $500 mark depending on current deals. If you find the EQ14 closer to $190 and the UPS on sale, you'll come in under budget with money left for a cable organizer or a second NIC adapter.</p>
+
+    <p>The compute node already includes RAM and an NVMe SSD, which is what makes this build viable at this price point in 2026. No separate RAM purchase needed.</p>
+
+    <h2 id="compute">The Compute Node: Beelink EQ14</h2>
+
+    <p>The Beelink EQ14 has become the consensus recommendation for budget homelabbing in 2026. It's a fanless mini PC with an Intel N150 processor (4 cores, 4 threads, up to 3.6GHz), 16GB of DDR4 RAM, and a 500GB or 1TB NVMe SSD included in the box. Importantly for homelab use, it has <strong>two 2.5 Gigabit Ethernet ports</strong> at this price — which is unusual and very welcome.</p>
+
+    <h3>Why the EQ14 works for a starter homelab</h3>
+
+    <ul>
+      <li><strong>Power efficiency:</strong> Around 6-10W at idle. At average US electricity rates, that's about $8-10/year to run 24/7. A used enterprise server idling at 120W would cost over $140/year — the EQ14 pays for the difference within two years.</li>
+      <li><strong>Near-silent operation:</strong> Most users report you cannot hear it from two feet away. Important if it lives anywhere near where you sleep or work.</li>
+      <li><strong>Dual 2.5GbE NICs:</strong> You can dedicate one NIC to management traffic and one to VM traffic, or use one as a router-on-a-stick for VLAN trunking. Dual NICs at this price point used to require a barebone setup with separate components.</li>
+      <li><strong>x86 architecture:</strong> Runs Proxmox, Docker, and any standard Linux distro natively — no ARM compatibility headaches.</li>
+      <li><strong>Built-in PSU:</strong> No power brick. Cleaner setup, less clutter.</li>
+      <li><strong>Pre-installed RAM and SSD:</strong> No additional component purchases needed to get running.</li>
+    </ul>
+
+    <h3>Honest limitations</h3>
+
+    <p>The EQ14 isn't a beast. Its honest limitations:</p>
+
+    <ul>
+      <li><strong>RAM caps at 16GB.</strong> The N150 platform doesn't support more. This is the main constraint and the reason this build doesn't recommend 32GB. For 2-3 lightweight VMs plus a Docker container host running 10+ services, 16GB is workable. For running Kubernetes, multiple Windows VMs, or memory-hungry databases, you'll want a more powerful node eventually.</li>
+      <li><strong>Single-channel memory.</strong> The N150 platform uses single-channel memory, which is a real performance limitation compared to dual-channel systems. Workloads requiring high memory bandwidth will feel this.</li>
+      <li><strong>4 cores, 4 threads.</strong> No hyperthreading. Fine for the workloads we'll run, but you'll feel it under sustained load with many VMs.</li>
+    </ul>
+
+    <blockquote>If you have the budget for it, the <strong>Beelink SER8</strong> (AMD Ryzen 7 8845HS, 8 cores, 32GB DDR5, 1TB NVMe) at around $550-650 is a major step up and well-loved by the homelab community. It's the "buy it once" pick if you can stretch the budget. But it pushes well past $500 once you add a switch and UPS, so this guide stays focused on the EQ14 as the actual budget build.</blockquote>
+
+    <h2 id="networking">Networking Gear</h2>
+
+    <p>A managed switch is the piece most beginners skip and later regret. An unmanaged switch works fine for basic connectivity, but you lose the ability to create VLANs — and VLANs are essential for building anything resembling a real network.</p>
+
+    <h3>Why VLANs matter</h3>
+
+    <p>VLANs let you segment your network logically without buying separate physical switches. In a homelab, you'd typically create:</p>
+
+    <ul>
+      <li><strong>VLAN 10 — Management:</strong> Proxmox web UI, switch management, out-of-band access</li>
+      <li><strong>VLAN 20 — Servers:</strong> Your VMs and containers</li>
+      <li><strong>VLAN 30 — IoT:</strong> Smart home devices isolated from everything else</li>
+      <li><strong>VLAN 40 — Guest:</strong> WiFi for visitors, no access to your internal network</li>
+    </ul>
+
+    <p>The <strong>TP-Link TL-SG108E</strong> remains the go-to budget managed switch in 2026. Eight gigabit ports, 802.1Q VLAN support, IGMP snooping, port mirroring, and QoS — all in a fanless metal case with a lifetime warranty. Current pricing has crept up to the $50-70 range, but it's still the best value proposition for a starter managed switch. The <strong>NETGEAR GS308E</strong> is a near-identical alternative if the TP-Link is out of stock.</p>
+
+    <p>If you want to upgrade to 2.5 Gigabit speeds to take advantage of the EQ14's dual 2.5GbE NICs, the <strong>TP-Link TL-SG108-M2</strong> (8-port, all 2.5GbE) is an option around $120, but it's unmanaged. For VLANs at 2.5GbE you're looking at $200+ switches, which blows the budget. Start with the SG108E and upgrade later if you actually saturate gigabit.</p>
+
+    <h2 id="power">Power and UPS</h2>
+
+    <p>A UPS (Uninterruptible Power Supply) isn't strictly required, but it's the single best $80 you can spend after the compute node. An unexpected power loss while Proxmox is writing to disk can corrupt your VM storage. Rebuilding a homelab from scratch because of a 2-second power blip is not how you want to spend a Saturday.</p>
+
+    <p>For a mini PC homelab, you don't need a massive UPS. A 650VA unit like the <strong>APC BE600M1</strong> or <strong>CyberPower EC650LCD</strong> ($70-90) gives you about 20-30 minutes of runtime on a 10W load — more than enough for a graceful shutdown. Both have USB connectivity so the host can detect a power outage and trigger shutdown scripts automatically.</p>
+
+    <p>Set up NUT (Network UPS Tools) on your Proxmox host to automatically shut down VMs when the battery drops below a threshold. The configuration is one of the better learning exercises for a new homelabber, and we'll touch on it in the monitoring section.</p>
+
+    <h2 id="hypervisor">Hypervisor: Proxmox Setup</h2>
+
+    <p>Proxmox VE is a free, open-source hypervisor built on Debian Linux. It supports both KVM virtual machines and LXC containers, has a clean web UI, and is used in production by companies worldwide. For a homelab, it's the best option — powerful, free, and well-documented.</p>
+
+    <h3>Installation</h3>
+
+    <p>Download the latest Proxmox VE ISO from <code>proxmox.com/downloads</code>. Flash it to a USB drive using Rufus (Windows), Etcher (cross-platform), or <code>dd</code> (Linux/Mac):</p>
+
+    <pre><code># On Linux/Mac
+sudo dd if=proxmox-ve_8.x.iso of=/dev/sdX bs=4M status=progress</code></pre>
+
+    <p>Boot from the USB drive and follow the installer. The key decisions during install:</p>
+
+    <ul>
+      <li><strong>Target disk:</strong> Select your internal NVMe SSD. For a single disk, ext4 is simpler and wastes less space than ZFS.</li>
+      <li><strong>Network:</strong> Set a static IP on your LAN (e.g. <code>192.168.1.100/24</code>). This is how you'll access the web UI.</li>
+      <li><strong>DNS:</strong> Point to your router or <code>1.1.1.1</code> for now.</li>
+    </ul>
+
+    <p>After installation, access the web UI at <code>https://YOUR_IP:8006</code> from any browser on your network.</p>
+
+    <h3>Post-install essentials</h3>
+
+    <p>First, disable the enterprise repository (you're using the free version) and enable the no-subscription repo. SSH in as root or open the web UI shell:</p>
+
+    <pre><code># Disable enterprise repo
+sed -i 's/^deb/# deb/' /etc/apt/sources.list.d/pve-enterprise.list
+
+# Add no-subscription repo
+echo "deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription" > /etc/apt/sources.list.d/pve-no-sub.list
+
+# Update everything
+apt update && apt full-upgrade -y</code></pre>
+
+    <p>Then set up your storage in Datacenter → Storage. By default you'll have <code>local</code> (for ISOs, templates, and backups) and <code>local-lvm</code> (for VM disks). For a 500GB or 1TB drive, the defaults are fine to start.</p>
+
+    <h2 id="first-vms">Your First VMs and Containers</h2>
+
+    <p>With Proxmox running, it's time to spin up some workloads. Proxmox supports two types of virtualization:</p>
+
+    <ul>
+      <li><strong>KVM Virtual Machines:</strong> Full hardware virtualization. Use for anything that needs its own kernel — pfSense, OPNsense, or when you need complete isolation.</li>
+      <li><strong>LXC Containers:</strong> Lightweight OS-level virtualization. Use for Linux services where you want minimal overhead. An LXC container starts in seconds and uses a fraction of the RAM a full VM would.</li>
+    </ul>
+
+    <h3>Recommended starter setup for 16GB</h3>
+
+    <p>With 16GB to work with, container density matters. Here's a realistic allocation:</p>
+
+    <table>
+      <thead>
+        <tr><th>Workload</th><th>Type</th><th>RAM</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Proxmox host</td><td>—</td><td>1.5 GB</td></tr>
+        <tr><td>Docker host (running 10+ containers)</td><td>LXC</td><td>6 GB</td></tr>
+        <tr><td>Pi-hole DNS / ad blocking</td><td>LXC</td><td>512 MB</td></tr>
+        <tr><td>Ubuntu Server (general purpose)</td><td>VM</td><td>3 GB</td></tr>
+        <tr><td>Monitoring (Prometheus + Grafana)</td><td>Docker</td><td>2 GB</td></tr>
+        <tr><td>Headroom for experiments</td><td>—</td><td>3 GB</td></tr>
+        <tr><td><strong>Total</strong></td><td></td><td><strong>~16 GB</strong></td></tr>
+      </tbody>
+    </table>
+
+    <p>The trick on 16GB is to favor LXC containers over full VMs whenever possible. LXC containers share the host kernel, so they use a fraction of the memory a full VM would for equivalent workloads.</p>
+
+    <p><strong>1. Docker LXC container</strong> — This will be your workhorse. Create a Debian 12 or Ubuntu 22.04 LXC container, install Docker and Docker Compose, and run most of your services here. Allocate 6GB RAM and 2 cores.</p>
+
+    <pre><code># Inside the LXC container
+apt update && apt install -y ca-certificates curl gnupg
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+apt update && apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin</code></pre>
+
+    <p><strong>2. Pi-hole LXC container</strong> — Network-wide ad blocking and local DNS. 512MB RAM and 1 core is plenty. Point your router's DHCP DNS setting to this container's IP and every device on your network gets ad blocking.</p>
+
+    <p><strong>3. Ubuntu Server VM</strong> — A general-purpose sandbox. Install whatever you want, break it, rebuild it. 3GB RAM, 2 cores.</p>
+
+    <h2 id="networking-setup">Network Configuration</h2>
+
+    <p>Now's the time to set up VLANs on the managed switch. Here's a minimal, practical configuration:</p>
+
+    <h3>Switch configuration (TP-Link TL-SG108E)</h3>
+
+    <p>Access the switch's web UI (default IP is usually <code>192.168.0.1</code>). Navigate to VLAN → 802.1Q VLAN and create:</p>
+
+    <table>
+      <thead>
+        <tr><th>VLAN ID</th><th>Name</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>Default</td><td>Untagged management traffic</td></tr>
+        <tr><td>10</td><td>Management</td><td>Proxmox UI, switch management</td></tr>
+        <tr><td>20</td><td>Servers</td><td>VM and container traffic</td></tr>
+        <tr><td>30</td><td>IoT</td><td>Smart devices, isolated</td></tr>
+      </tbody>
+    </table>
+
+    <p>Set the port connected to your Proxmox host as a trunk port (tagged member of all VLANs). Set other ports as untagged members of their respective VLANs.</p>
+
+    <h3>Proxmox VLAN configuration</h3>
+
+    <p>In Proxmox, edit <code>/etc/network/interfaces</code> to create VLAN-aware bridging:</p>
+
+    <pre><code>auto vmbr0
+iface vmbr0 inet static
+    address 192.168.10.100/24
+    gateway 192.168.10.1
+    bridge-ports enp1s0
+    bridge-stp off
+    bridge-fd 0
+    bridge-vlan-aware yes
+    bridge-vids 10 20 30</code></pre>
+
+    <p>Now when you create a VM or container, you can assign it to a specific VLAN by setting the VLAN tag on its network interface in the Proxmox UI. A container on VLAN 20 can't talk to a device on VLAN 30 unless you explicitly route between them — that's the whole point of segmentation.</p>
+
+    <p>One advantage of the EQ14's dual NICs: you can dedicate one NIC to the management VLAN exclusively (untagged on the switch port) and use the second NIC for VLAN-tagged VM traffic. This means losing access to a misconfigured VM network can't lock you out of Proxmox management. Worth setting up early.</p>
+
+    <h2 id="monitoring">Monitoring Stack</h2>
+
+    <p>A homelab without monitoring is just a collection of things waiting to break without warning. Set up monitoring early — it's one of the most valuable skills you can develop, and employers love seeing it on a resume.</p>
+
+    <h3>Option A: Uptime Kuma (simple)</h3>
+
+    <p>If you want fast, beautiful monitoring with minimal setup, Uptime Kuma is one Docker container that monitors URLs, pings, ports, and certificates with a clean dashboard and notification support (email, Slack, Discord, Telegram, and more):</p>
+
+    <pre><code>docker run -d --restart=unless-stopped -p 3001:3001 \
+  -v uptime-kuma:/app/data \
+  --name uptime-kuma louislam/uptime-kuma:1</code></pre>
+
+    <p>Access it at <code>http://YOUR_IP:3001</code> and start adding monitors. It's the fastest way to know when something on your network goes down.</p>
+
+    <h3>Option B: Prometheus + Grafana (full stack)</h3>
+
+    <p>For deeper metrics and historical data, run Prometheus and Grafana in your Docker LXC. Create a <code>docker-compose.yml</code>:</p>
+
+    <pre><code>version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=changeme
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+  grafana_data:</code></pre>
+
+    <p>Create <code>prometheus/prometheus.yml</code>:</p>
+
+    <pre><code>global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']</code></pre>
+
+    <p>Run <code>docker compose up -d</code>, then access Grafana at <code>http://YOUR_IP:3000</code>. Add Prometheus as a data source, import dashboard #1860 ("Node Exporter Full"), and you'll immediately see CPU, RAM, disk, and network metrics. The full stack uses about 1-2GB of RAM, so on a 16GB system pick this OR Uptime Kuma — don't run both.</p>
+
+    <h3>What to monitor</h3>
+
+    <ul>
+      <li><strong>CPU and RAM usage</strong> — per host and per VM</li>
+      <li><strong>Disk space and I/O</strong> — the number one cause of mysterious failures</li>
+      <li><strong>Network throughput</strong> — per interface</li>
+      <li><strong>UPS battery level</strong> — via NUT exporter</li>
+      <li><strong>Service uptime</strong> — Uptime Kuma's specialty</li>
+    </ul>
+
+    <h2 id="services">Essential Homelab Services</h2>
+
+    <p>Once your infrastructure is solid, here are the services worth running first. All of these run as Docker containers on your Docker LXC:</p>
+
+    <p><strong>Portainer</strong> — Web UI for managing Docker containers. Makes it easy to deploy, stop, restart, and view logs without touching the command line every time.</p>
+
+    <pre><code>docker run -d -p 9443:9443 --name portainer --restart=always \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v portainer_data:/data \
+  portainer/portainer-ce:latest</code></pre>
+
+    <p><strong>Pi-hole</strong> — Network-wide ad blocking. Set it as your network's DNS server (configure DHCP on your router to hand it out) and ads disappear from every device.</p>
+
+    <p><strong>WireGuard</strong> — VPN back into your home network from anywhere. Essential if you want to access your homelab remotely. <a href="/guides/wireguard-setup.html">See our complete WireGuard guide</a> for setup instructions.</p>
+
+    <p><strong>Nginx Proxy Manager</strong> — Reverse proxy with a GUI. Put all your services behind a single entry point with SSL certificates from Let's Encrypt. Access Grafana at <code>grafana.yourdomain.com</code> instead of remembering <code>192.168.20.5:3000</code>.</p>
+
+    <p><strong>Vaultwarden</strong> — Self-hosted Bitwarden-compatible password manager. Your passwords, your server, your control. Very light on resources — runs comfortably on 256MB.</p>
+
+    <h2 id="mistakes">Common Mistakes to Avoid</h2>
+
+    <p><strong>Buying used enterprise hardware as your first homelab.</strong> That $150 Dell R720 on eBay looks like a deal until you factor in $150+/year in electricity, jet-engine fan noise, and the 60 pounds of steel your significant other will not appreciate in the living room. Start small with a mini PC. You can always add a second node later.</p>
+
+    <p><strong>Spending weeks on the "perfect" setup before deploying anything.</strong> Analysis paralysis is real. Get Proxmox installed, spin up one container, and start learning. You'll rebuild everything at least three times anyway — that's the point of a homelab.</p>
+
+    <p><strong>No backups.</strong> Your homelab <em>will</em> break. VMs will corrupt. Disks will fail. Set up automated Proxmox backups to that external USB drive from day one. Proxmox has built-in backup scheduling in Datacenter → Backup — use it. Weekly backups are the floor; daily for anything you'd cry over losing.</p>
+
+    <p><strong>Flat network with no segmentation.</strong> Running your IoT devices, personal computers, and server infrastructure all on the same subnet is a security problem waiting to happen. VLANs exist for a reason. Set them up early so you don't have to re-IP everything later.</p>
+
+    <p><strong>Ignoring documentation.</strong> Keep a simple text file, wiki, or Notion page documenting your IP assignments, VLAN layout, passwords, and service locations. Future you will be very grateful at 2 AM when something breaks.</p>
+
+    <h2 id="upgrades">Where to Go From Here</h2>
+
+    <p>The EQ14 is a starting point, not a destination. Once you've been running this setup for a few months and start hitting limits, here's the upgrade path:</p>
+
+    <p><strong>Add a more powerful second node.</strong> The natural upgrade is something like the <strong>Beelink SER8</strong> (Ryzen 7 8845HS, 32GB DDR5, 1TB NVMe — currently around $550-650) or the <strong>Minisforum MS-01</strong> if you want 10GbE networking. Install Proxmox, create a cluster with the EQ14, and you'll get live migration (move VMs between hosts without downtime) and high availability.</p>
+
+    <p><strong>Add a NAS.</strong> A dedicated NAS like a <strong>Synology DS224+</strong> or a DIY TrueNAS box on a second mini PC gives you centralized storage and automated backups. Mount NFS shares in Proxmox for shared VM storage across your cluster.</p>
+
+    <p><strong>Wait for RAM prices to normalize, then upgrade.</strong> If DDR5 prices come back down (and they probably will eventually), the SER8 with 64GB becomes a reasonable upgrade. Until then, the EQ14 + a second mini PC for clustering is a better path than dumping money into overpriced RAM.</p>
+
+    <p><strong>Get a proper firewall.</strong> Replace your consumer router with pfSense or OPNsense running on a dedicated mini PC or as a VM. This gives you proper inter-VLAN routing, firewall rules, VPN termination, and traffic inspection — and is the next big leap in homelab skills.</p>
+
+    <p><strong>Explore Kubernetes.</strong> Once you're comfortable with Docker, spin up a k3s cluster across two or three VMs on your cluster. It's the natural next step for anyone moving toward DevOps or platform engineering roles.</p>
+
+    <p>The $500 homelab isn't the finish line — it's the foundation. Every component in this build was chosen to be useful now and to remain useful when you upgrade. Start small, learn constantly, and build up from there.</p>
+
+    <div class="ad-placeholder">[ ad placement ]</div>
+  </div>
+</article>
+
+<div id="newsletter"></div>
+<div id="footer"></div>
+
+<script src="/js/components.js"></script>
+</body>
+</html>
