@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Port Reference Database — Lareware</title>
+  <meta name="description" content="Searchable database of well-known TCP/UDP ports with service names, protocols, and security risk notes. Free port lookup tool for sysadmins.">
+  <link rel="canonical" href="https://lareware.net/tools/port-reference.html">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .port-container { max-width: 1000px; margin: 0 auto; }
+
+    /* Search bar */
+    .port-search-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .port-search {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1.25rem;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .port-search:focus { border-color: var(--accent); }
+    .port-search::placeholder { color: var(--text-muted); }
+
+    /* Filter tabs */
+    .port-filters {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.4rem 0.85rem;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.2s;
+    }
+    .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+    .filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    /* Stats bar */
+    .port-stats {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .port-stats .stat-num { color: var(--accent); font-weight: 700; }
+
+    /* Table */
+    .port-table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+    .port-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .port-table th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      background: var(--bg-card);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.2s;
+      white-space: nowrap;
+    }
+    .port-table th:hover { color: var(--text); }
+    .port-table th .sort-arrow { margin-left: 0.3rem; font-size: 0.6rem; }
+    .port-table td {
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      vertical-align: top;
+    }
+    .port-table tr:last-child td { border-bottom: none; }
+    .port-table tr:hover td { background: var(--bg-card); }
+    .port-table .col-port {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+    .port-table .col-proto {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+    }
+    .proto-badge {
+      display: inline-block;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      margin-right: 0.25rem;
+    }
+    .proto-tcp { background: var(--accent-dim); color: var(--accent); }
+    .proto-udp { background: var(--accent2-dim); color: var(--accent2); }
+    .proto-both { background: var(--orange-dim); color: var(--orange); }
+
+    .col-service { font-weight: 500; }
+    .col-desc { color: var(--text-muted); font-size: 0.82rem; }
+    .col-risk { white-space: nowrap; }
+
+    .risk-badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 600;
+    }
+    .risk-high { background: rgba(239,68,68,0.15); color: var(--red); }
+    .risk-medium { background: var(--orange-dim); color: var(--orange); }
+    .risk-low { background: var(--accent-dim); color: var(--accent); }
+    .risk-info { background: var(--accent2-dim); color: var(--accent2); }
+
+    /* Pagination */
+    .port-pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+    }
+    .page-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.4rem 0.75rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .page-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .page-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+    .page-btn:disabled { opacity: 0.3; cursor: default; }
+    .page-info {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin: 0 0.5rem;
+    }
+
+    /* No results */
+    .no-results {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      .port-table { font-size: 0.78rem; }
+      .port-table td, .port-table th { padding: 0.5rem 0.6rem; }
+      .col-desc { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<header class="article-header">
+  <div class="guide-cat">Tool</div>
+  <h1>Port Reference Database</h1>
+  <p style="color: var(--text-muted); margin-top: 0.5rem;">Searchable database of well-known ports with service names, protocols, and security risk notes. Search by port number, service name, or keyword.</p>
+</header>
+
+<section class="section" style="padding-top: 0;">
+  <div class="port-container">
+
+    <!-- Search -->
+    <div class="port-search-row">
+      <input type="text" class="port-search" id="port-search" placeholder="Search by port number, service, or keyword..." autocomplete="off" spellcheck="false">
+    </div>
+
+    <!-- Filters -->
+    <div class="port-filters">
+      <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">All</button>
+      <button class="filter-btn" data-filter="tcp" onclick="setFilter('tcp',this)">TCP</button>
+      <button class="filter-btn" data-filter="udp" onclick="setFilter('udp',this)">UDP</button>
+      <button class="filter-btn" data-filter="high" onclick="setFilter('high',this)">High Risk</button>
+      <button class="filter-btn" data-filter="well-known" onclick="setFilter('well-known',this)">Well-Known (0-1023)</button>
+      <button class="filter-btn" data-filter="registered" onclick="setFilter('registered',this)">Registered (1024-49151)</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="port-stats">
+      <span>Showing <span class="stat-num" id="stat-showing">0</span> ports</span>
+      <span>Total: <span class="stat-num" id="stat-total">0</span></span>
+    </div>
+
+    <!-- Table -->
+    <div class="port-table-wrap">
+      <table class="port-table">
+        <thead>
+          <tr>
+            <th onclick="sortBy('port')">Port <span class="sort-arrow" id="sort-port">▲</span></th>
+            <th onclick="sortBy('proto')">Proto <span class="sort-arrow" id="sort-proto"></span></th>
+            <th onclick="sortBy('service')">Service <span class="sort-arrow" id="sort-service"></span></th>
+            <th>Description</th>
+            <th onclick="sortBy('risk')">Risk <span class="sort-arrow" id="sort-risk"></span></th>
+          </tr>
+        </thead>
+        <tbody id="port-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="port-pagination" id="pagination"></div>
+
+  </div>
+</section>
+
+<!-- SEO content -->
+<div class="article-body">
+  <div class="ad-placeholder">[ ad placement ]</div>
+
+  <h2>What Are Port Numbers?</h2>
+  <p>Port numbers are 16-bit unsigned integers (0–65535) that identify specific processes or services on a networked host. When your browser connects to a website, it connects to port 443 (HTTPS) or port 80 (HTTP) on the server. When you SSH into a machine, you connect to port 22.</p>
+
+  <h2>Port Ranges</h2>
+  <p>Ports are divided into three ranges defined by IANA (Internet Assigned Numbers Authority):</p>
+  <ul>
+    <li><strong>Well-known ports (0-1023)</strong> — reserved for standard services like HTTP (80), HTTPS (443), SSH (22), DNS (53), and SMTP (25). These require root/admin privileges to bind on most operating systems.</li>
+    <li><strong>Registered ports (1024-49151)</strong> — assigned by IANA to specific services upon request. Examples include MySQL (3306), PostgreSQL (5432), and RDP (3389).</li>
+    <li><strong>Dynamic/private ports (49152-65535)</strong> — used for ephemeral connections. When your browser makes an outbound request, the OS assigns a random port from this range as the source port.</li>
+  </ul>
+
+  <h2>Security Considerations</h2>
+  <p>Open ports are attack surface. Every port listening on a public interface is a potential entry point. Best practices include closing unnecessary ports with firewall rules (<code>iptables</code>, <code>ufw</code>, or cloud security groups), running services on non-default ports when practical, and regularly auditing with <code>nmap</code> or <code>ss -tlnp</code>.</p>
+  <p>Ports marked "High Risk" in this database are frequently targeted by automated scanners and botnets. If you're exposing these services, ensure they're properly hardened, patched, and ideally behind a VPN or jump host.</p>
+
+  <div class="ad-placeholder">[ ad placement ]</div>
+</div>
+
+<div id="newsletter"></div>
+<div id="footer"></div>
+
+<script src="/js/components.js"></script>
+<script>
+// ============================================
+// Port Reference Database
+// ============================================
+
+// Port data: [port, protocol, service, description, risk]
+// risk: high, medium, low, info
+const PORTS = [
+  [7,"tcp","Echo","Echo service — reflects data back to sender","low"],
+  [20,"tcp","FTP Data","FTP data transfer channel","high"],
+  [21,"tcp","FTP","FTP control (command) channel — cleartext auth","high"],
+  [22,"tcp","SSH","Secure Shell — encrypted remote access","medium"],
+  [23,"tcp","Telnet","Unencrypted remote login — deprecated","high"],
+  [25,"tcp","SMTP","Simple Mail Transfer Protocol — email relay","medium"],
+  [43,"tcp","WHOIS","WHOIS directory service","info"],
+  [53,"both","DNS","Domain Name System — name resolution","medium"],
+  [67,"udp","DHCP Server","Dynamic Host Configuration Protocol (server)","low"],
+  [68,"udp","DHCP Client","Dynamic Host Configuration Protocol (client)","low"],
+  [69,"udp","TFTP","Trivial File Transfer Protocol — no auth","high"],
+  [80,"tcp","HTTP","Hypertext Transfer Protocol — unencrypted web","medium"],
+  [88,"both","Kerberos","Kerberos authentication system","medium"],
+  [110,"tcp","POP3","Post Office Protocol v3 — email retrieval","medium"],
+  [111,"both","RPCbind","Open Network Computing Remote Procedure Call","high"],
+  [119,"tcp","NNTP","Network News Transfer Protocol","low"],
+  [123,"udp","NTP","Network Time Protocol — clock synchronization","low"],
+  [135,"tcp","MS-RPC","Microsoft RPC Endpoint Mapper","high"],
+  [137,"both","NetBIOS-NS","NetBIOS Name Service","high"],
+  [138,"udp","NetBIOS-DGM","NetBIOS Datagram Service","high"],
+  [139,"tcp","NetBIOS-SSN","NetBIOS Session Service — SMB over NetBIOS","high"],
+  [143,"tcp","IMAP","Internet Message Access Protocol — email","medium"],
+  [161,"udp","SNMP","Simple Network Management Protocol","high"],
+  [162,"udp","SNMP Trap","SNMP Trap notifications","medium"],
+  [179,"tcp","BGP","Border Gateway Protocol — internet routing","medium"],
+  [194,"tcp","IRC","Internet Relay Chat","medium"],
+  [201,"tcp","AppleTalk","AppleTalk routing","low"],
+  [389,"tcp","LDAP","Lightweight Directory Access Protocol","high"],
+  [443,"tcp","HTTPS","HTTP over TLS — encrypted web traffic","low"],
+  [445,"tcp","SMB","Server Message Block — Windows file sharing","high"],
+  [465,"tcp","SMTPS","SMTP over SSL/TLS (deprecated, use 587)","low"],
+  [500,"udp","IKE","Internet Key Exchange — IPSec VPN","medium"],
+  [514,"udp","Syslog","BSD Syslog Protocol","medium"],
+  [515,"tcp","LPD","Line Printer Daemon","low"],
+  [520,"udp","RIP","Routing Information Protocol","medium"],
+  [523,"tcp","IBM DB2","IBM DB2 Discovery Service","medium"],
+  [530,"tcp","RPC","Remote Procedure Call","medium"],
+  [543,"tcp","Klogin","Kerberos authenticated rlogin","medium"],
+  [544,"tcp","Kshell","Kerberos authenticated remote shell","medium"],
+  [548,"tcp","AFP","Apple Filing Protocol","medium"],
+  [554,"tcp","RTSP","Real Time Streaming Protocol","low"],
+  [587,"tcp","SMTP Sub","SMTP message submission (with STARTTLS)","low"],
+  [593,"tcp","MS-RPC HTTP","Microsoft RPC over HTTP","medium"],
+  [631,"tcp","IPP","Internet Printing Protocol — CUPS","low"],
+  [636,"tcp","LDAPS","LDAP over SSL/TLS","low"],
+  [873,"tcp","rsync","rsync file synchronization","medium"],
+  [902,"tcp","VMware","VMware ESXi management","medium"],
+  [993,"tcp","IMAPS","IMAP over SSL/TLS","low"],
+  [995,"tcp","POP3S","POP3 over SSL/TLS","low"],
+  [1080,"tcp","SOCKS","SOCKS proxy protocol","high"],
+  [1099,"tcp","Java RMI","Java Remote Method Invocation","high"],
+  [1194,"both","OpenVPN","OpenVPN tunnel","low"],
+  [1433,"tcp","MS-SQL","Microsoft SQL Server","high"],
+  [1434,"udp","MS-SQL Mon","Microsoft SQL Server Browser","high"],
+  [1521,"tcp","Oracle DB","Oracle Database TNS Listener","high"],
+  [1723,"tcp","PPTP","Point-to-Point Tunneling Protocol VPN","medium"],
+  [1883,"tcp","MQTT","Message Queuing Telemetry Transport (IoT)","medium"],
+  [2049,"both","NFS","Network File System","high"],
+  [2082,"tcp","cPanel","cPanel web hosting control panel","medium"],
+  [2083,"tcp","cPanel SSL","cPanel over SSL","medium"],
+  [2181,"tcp","ZooKeeper","Apache ZooKeeper coordination service","medium"],
+  [2375,"tcp","Docker","Docker daemon API (unencrypted!)","high"],
+  [2376,"tcp","Docker TLS","Docker daemon API over TLS","medium"],
+  [3000,"tcp","Grafana","Grafana monitoring dashboard (default)","medium"],
+  [3128,"tcp","Squid","Squid HTTP proxy (default)","medium"],
+  [3268,"tcp","LDAP GC","Microsoft Global Catalog (LDAP)","medium"],
+  [3306,"tcp","MySQL","MySQL / MariaDB database server","high"],
+  [3389,"tcp","RDP","Remote Desktop Protocol — Windows","high"],
+  [4443,"tcp","Pharos","Common alternative HTTPS port","low"],
+  [4444,"tcp","Metasploit","Metasploit default listener — red flag","high"],
+  [4505,"tcp","SaltStack","SaltStack publish port","medium"],
+  [4506,"tcp","SaltStack","SaltStack request port","medium"],
+  [4848,"tcp","GlassFish","GlassFish admin console","medium"],
+  [5000,"tcp","UPnP","Universal Plug and Play / Flask default","medium"],
+  [5001,"tcp","Synology","Synology DSM (HTTPS)","medium"],
+  [5060,"both","SIP","Session Initiation Protocol — VoIP","medium"],
+  [5222,"tcp","XMPP","Extensible Messaging and Presence Protocol","low"],
+  [5432,"tcp","PostgreSQL","PostgreSQL database server","high"],
+  [5555,"tcp","ADB","Android Debug Bridge (remote)","high"],
+  [5672,"tcp","AMQP","RabbitMQ / Advanced Message Queuing Protocol","medium"],
+  [5900,"tcp","VNC","Virtual Network Computing — remote desktop","high"],
+  [5984,"tcp","CouchDB","Apache CouchDB REST API","medium"],
+  [5985,"tcp","WinRM","Windows Remote Management (HTTP)","high"],
+  [5986,"tcp","WinRM SSL","Windows Remote Management (HTTPS)","medium"],
+  [6379,"tcp","Redis","Redis in-memory data store","high"],
+  [6443,"tcp","Kubernetes","Kubernetes API Server","medium"],
+  [6660,"tcp","IRC Alt","IRC alternative port range start","low"],
+  [6667,"tcp","IRC","Internet Relay Chat (common)","medium"],
+  [6697,"tcp","IRC SSL","IRC over SSL/TLS","low"],
+  [7070,"tcp","RTSP Alt","RealServer / RTSP alternative","low"],
+  [7474,"tcp","Neo4j","Neo4j graph database web UI","medium"],
+  [8000,"tcp","HTTP Alt","HTTP alternative (Django, Python)","low"],
+  [8008,"tcp","HTTP Alt","HTTP alternative port","low"],
+  [8080,"tcp","HTTP Proxy","HTTP proxy / alternative web server","medium"],
+  [8081,"tcp","HTTP Alt","HTTP alternative / admin panels","medium"],
+  [8443,"tcp","HTTPS Alt","HTTPS alternative (Tomcat, etc.)","low"],
+  [8444,"tcp","Plex Alt","Alternative HTTPS port","low"],
+  [8500,"tcp","Consul","HashiCorp Consul web UI","medium"],
+  [8834,"tcp","Nessus","Tenable Nessus vulnerability scanner","medium"],
+  [8888,"tcp","HTTP Alt","HTTP alternative / Jupyter Notebook","medium"],
+  [9000,"tcp","Portainer","Portainer / SonarQube / PHP-FPM","medium"],
+  [9090,"tcp","Prometheus","Prometheus monitoring (default)","medium"],
+  [9092,"tcp","Kafka","Apache Kafka broker","medium"],
+  [9100,"tcp","JetDirect","HP JetDirect printing","medium"],
+  [9200,"tcp","Elasticsearch","Elasticsearch REST API","high"],
+  [9300,"tcp","Elasticsearch","Elasticsearch node communication","medium"],
+  [9418,"tcp","Git","Git protocol (unencrypted)","medium"],
+  [9443,"tcp","HTTPS Alt","Alternative HTTPS port","low"],
+  [10000,"tcp","Webmin","Webmin system administration","medium"],
+  [10250,"tcp","Kubelet","Kubernetes Kubelet API","high"],
+  [10443,"tcp","HTTPS Alt","Alternative HTTPS port","low"],
+  [11211,"both","Memcached","Memcached distributed cache","high"],
+  [11214,"tcp","Memcached","Memcached SSL","medium"],
+  [15672,"tcp","RabbitMQ","RabbitMQ management web UI","medium"],
+  [25565,"tcp","Minecraft","Minecraft game server","low"],
+  [27017,"tcp","MongoDB","MongoDB database server","high"],
+  [27018,"tcp","MongoDB","MongoDB shard server","high"],
+  [28017,"tcp","MongoDB Web","MongoDB web status interface","high"],
+  [32400,"tcp","Plex","Plex Media Server","low"],
+  [33060,"tcp","MySQL X","MySQL X Protocol","medium"],
+  [44818,"tcp","EtherNet/IP","EtherNet/IP industrial protocol","high"],
+  [47808,"udp","BACnet","Building Automation and Control Networks","medium"],
+  [50000,"tcp","SAP","SAP management console","medium"],
+  [50070,"tcp","HDFS","Hadoop HDFS NameNode web UI","medium"],
+  [51820,"udp","WireGuard","WireGuard VPN tunnel","low"],
+  [54321,"tcp","PostgreSQL Alt","PostgreSQL alternative port","medium"],
+  [61616,"tcp","ActiveMQ","Apache ActiveMQ broker","medium"],
+];
+
+let currentFilter = 'all';
+let currentSort = 'port';
+let currentSortDir = 'asc';
+let currentPage = 1;
+const perPage = 50;
+
+function getFilteredPorts() {
+  const query = document.getElementById('port-search').value.toLowerCase().trim();
+  let filtered = PORTS;
+
+  // Filter by category
+  if (currentFilter === 'tcp') filtered = filtered.filter(p => p[1] === 'tcp' || p[1] === 'both');
+  else if (currentFilter === 'udp') filtered = filtered.filter(p => p[1] === 'udp' || p[1] === 'both');
+  else if (currentFilter === 'high') filtered = filtered.filter(p => p[4] === 'high');
+  else if (currentFilter === 'well-known') filtered = filtered.filter(p => p[0] <= 1023);
+  else if (currentFilter === 'registered') filtered = filtered.filter(p => p[0] >= 1024 && p[0] <= 49151);
+
+  // Search
+  if (query) {
+    filtered = filtered.filter(p =>
+      String(p[0]).includes(query) ||
+      p[2].toLowerCase().includes(query) ||
+      p[3].toLowerCase().includes(query) ||
+      p[1].toLowerCase().includes(query)
+    );
+  }
+
+  // Sort
+  filtered.sort((a, b) => {
+    let va, vb;
+    if (currentSort === 'port') { va = a[0]; vb = b[0]; }
+    else if (currentSort === 'proto') { va = a[1]; vb = b[1]; }
+    else if (currentSort === 'service') { va = a[2].toLowerCase(); vb = b[2].toLowerCase(); }
+    else if (currentSort === 'risk') {
+      const order = { high: 0, medium: 1, low: 2, info: 3 };
+      va = order[a[4]]; vb = order[b[4]];
+    }
+    if (va < vb) return currentSortDir === 'asc' ? -1 : 1;
+    if (va > vb) return currentSortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  return filtered;
+}
+
+function renderTable() {
+  const filtered = getFilteredPorts();
+  const totalPages = Math.ceil(filtered.length / perPage);
+  if (currentPage > totalPages) currentPage = 1;
+  const start = (currentPage - 1) * perPage;
+  const page = filtered.slice(start, start + perPage);
+
+  const tbody = document.getElementById('port-tbody');
+
+  if (page.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="no-results">No ports found matching your search.</div></td></tr>`;
+  } else {
+    tbody.innerHTML = page.map(p => {
+      const protoBadge = p[1] === 'both'
+        ? '<span class="proto-badge proto-tcp">TCP</span><span class="proto-badge proto-udp">UDP</span>'
+        : `<span class="proto-badge proto-${p[1]}">${p[1].toUpperCase()}</span>`;
+
+      const riskBadge = `<span class="risk-badge risk-${p[4]}">${p[4]}</span>`;
+
+      return `<tr>
+        <td class="col-port">${p[0]}</td>
+        <td class="col-proto">${protoBadge}</td>
+        <td class="col-service">${p[2]}</td>
+        <td class="col-desc">${p[3]}</td>
+        <td class="col-risk">${riskBadge}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Stats
+  document.getElementById('stat-showing').textContent = filtered.length;
+  document.getElementById('stat-total').textContent = PORTS.length;
+
+  // Pagination
+  renderPagination(filtered.length, totalPages);
+
+  // Sort arrows
+  ['port','proto','service','risk'].forEach(col => {
+    const el = document.getElementById('sort-' + col);
+    if (el) el.textContent = currentSort === col ? (currentSortDir === 'asc' ? '▲' : '▼') : '';
+  });
+}
+
+function renderPagination(total, totalPages) {
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  let html = `<button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>←</button>`;
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (totalPages > 7 && i > 3 && i < totalPages - 1 && Math.abs(i - currentPage) > 1) {
+      if (i === 4) html += `<span class="page-info">…</span>`;
+      continue;
+    }
+    html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+  }
+
+  html += `<button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>→</button>`;
+  el.innerHTML = html;
+}
+
+function goPage(n) {
+  const filtered = getFilteredPorts();
+  const totalPages = Math.ceil(filtered.length / perPage);
+  if (n < 1 || n > totalPages) return;
+  currentPage = n;
+  renderTable();
+  document.querySelector('.port-table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  currentPage = 1;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+function sortBy(col) {
+  if (currentSort === col) {
+    currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentSort = col;
+    currentSortDir = 'asc';
+  }
+  renderTable();
+}
+
+// Search with debounce
+let searchTimer;
+document.getElementById('port-search').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    currentPage = 1;
+    renderTable();
+  }, 200);
+});
+
+// Init
+renderTable();
+</script>
+</body>
+</html>
