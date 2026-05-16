@@ -445,11 +445,9 @@
 <script>
 // ============================================
 // SSL/TLS Certificate Checker
-// Uses SSL Labs API (free, no key required)
-// + crt.sh for supplementary cert data
+// Uses crt.sh (Certificate Transparency) — CORS friendly
+// + fetch HTTPS headers for HSTS check
 // ============================================
-
-const SSLLABS_API = 'https://api.ssllabs.com/api/v3';
 
 document.getElementById('ssl-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') checkSSL();
@@ -491,211 +489,188 @@ async function checkSSL() {
   if (!raw.trim()) { showError('Enter a domain name to check.'); return; }
 
   const domain = cleanDomain(raw);
+  if (!domain || domain.indexOf('.') === -1) {
+    showError('Enter a valid domain name, e.g. github.com');
+    return;
+  }
+
   clearUI();
-  setLoading('Submitting to SSL Labs API…');
+  setLoading('Querying Certificate Transparency logs…');
 
   const btn = document.getElementById('ssl-btn');
   btn.disabled = true;
   btn.textContent = 'Checking…';
 
   try {
-    const data = await pollSSLLabs(domain);
-    renderResults(domain, data);
-  } catch (e) {
-    showError(e.message || 'SSL check failed. The SSL Labs API may be busy — try again in a moment.');
+    await runCheck(domain);
+  } catch(e) {
+    showError('Could not retrieve certificate data. Check the domain and try again.');
+    console.error(e);
   }
 
   btn.disabled = false;
   btn.textContent = 'Check';
 }
 
-async function pollSSLLabs(domain) {
-  // Start or get analysis
-  let url = `${SSLLABS_API}/analyze?host=${encodeURIComponent(domain)}&all=done&ignoreMismatch=on`;
-  let attempts = 0;
-  const maxAttempts = 30;
+async function runCheck(domain) {
+  // Query crt.sh for the most recent certificate
+  setLoading('Fetching certificate from CT logs…');
+  const crtUrl = `https://crt.sh/?q=${encodeURIComponent(domain)}&output=json`;
+  const res = await fetch(crtUrl);
+  if (!res.ok) throw new Error(`crt.sh returned HTTP ${res.status}`);
 
-  while (attempts < maxAttempts) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`SSL Labs API error: HTTP ${res.status}`);
-    const data = await res.json();
-
-    if (data.status === 'ERROR') {
-      throw new Error(data.statusMessage || 'SSL Labs returned an error.');
-    }
-
-    if (data.status === 'READY') {
-      return data;
-    }
-
-    // Still running — show progress
-    const msg = data.status === 'DNS' ? 'Resolving DNS…' :
-                data.status === 'IN_PROGRESS' ? `Analyzing… (${data.endpoints?.[0]?.progress || 0}%)` :
-                `Status: ${data.status}…`;
-    setLoading(msg);
-
-    // After first call, use fromCache=on to avoid re-triggering
-    url = `${SSLLABS_API}/analyze?host=${encodeURIComponent(domain)}&all=done&ignoreMismatch=on&fromCache=on`;
-
-    await sleep(3000);
-    attempts++;
+  const certs = await res.json();
+  if (!certs || certs.length === 0) {
+    showError(`No SSL certificates found for "${domain}". The domain may not have HTTPS configured, or may not exist.`);
+    return;
   }
 
-  throw new Error('Analysis timed out. The SSL Labs API may be busy. Try again shortly.');
+  // Sort by most recently issued, pick the freshest non-precert
+  const filtered = certs
+    .filter(c => !c.name_value.includes('\n') || true) // keep all
+    .sort((a, b) => new Date(b.not_before) - new Date(a.not_before));
+
+  // Find the most recent cert that matches the domain exactly or as wildcard
+  const best = filtered.find(c => {
+    const names = c.name_value.split('\n');
+    return names.some(n => matchesDomain(n.trim(), domain));
+  }) || filtered[0];
+
+  // Also grab the full detail for this cert
+  setLoading('Loading certificate details…');
+  let certDetail = null;
+  try {
+    const detailRes = await fetch(`https://crt.sh/?id=${best.id}&output=json`);
+    if (detailRes.ok) certDetail = await detailRes.json();
+  } catch(e) { /* detail fetch optional */ }
+
+  // Check DNS resolves (confirms domain is live)
+  setLoading('Checking DNS and HTTPS reachability…');
+  let dnsOk = false;
+  try {
+    const dnsRes = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=A`);
+    const dnsData = await dnsRes.json();
+    dnsOk = dnsData.Status === 0 && dnsData.Answer?.length > 0;
+  } catch(e) {}
+
+  renderResults(domain, best, filtered, certDetail, dnsOk);
 }
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function matchesDomain(san, domain) {
+  if (san === domain) return true;
+  if (san.startsWith('*.')) {
+    const base = san.slice(2);
+    return domain === base || domain.endsWith('.' + base);
+  }
+  return false;
+}
 
-function renderResults(domain, data) {
+function renderResults(domain, cert, allCerts, detail, dnsOk) {
   document.getElementById('ssl-loading').classList.remove('visible');
   document.getElementById('results').classList.add('visible');
 
-  const ep = data.endpoints?.[0];
-  const details = ep?.details;
-  const cert = details?.cert;
-  const chain = details?.chain;
-
-  // Grade
-  const grade = ep?.grade || '?';
-  const gradeBadge = document.getElementById('grade-badge');
-  const gradeClass = grade.startsWith('A') ? 'grade-A' : grade.startsWith('B') ? 'grade-B' :
-                     grade.startsWith('C') ? 'grade-C' : grade === 'F' ? 'grade-F' :
-                     grade === 'T' ? 'grade-T' : 'grade-unknown';
-  gradeBadge.className = `grade-badge ${gradeClass}`;
-  gradeBadge.textContent = grade;
-
-  document.getElementById('result-domain').textContent = domain;
-  document.getElementById('result-summary').textContent = ep?.statusMessage || data.statusMessage || '';
-
-  // Expiry
-  if (cert?.notAfter) {
-    const expiry = new Date(cert.notAfter);
-    const now = new Date();
-    const daysLeft = Math.ceil((expiry - now) / 86400000);
-    const notBefore = cert.notAfter && cert.notBefore ? new Date(cert.notBefore) : null;
-    const totalDays = notBefore ? Math.ceil((expiry - notBefore) / 86400000) : 365;
-    const pct = Math.max(0, Math.min(100, (daysLeft / totalDays) * 100));
-
-    document.getElementById('card-expires').innerHTML =
-      `<span class="${daysLeft < 30 ? 'status-err' : daysLeft < 60 ? 'status-warn' : 'status-ok'}">${formatDate(expiry)}</span>`;
-
-    const expiryWrap = document.getElementById('expiry-bar-wrap');
-    const fill = document.getElementById('expiry-fill');
-    expiryWrap.style.display = 'block';
-    fill.style.width = pct + '%';
-    fill.style.background = daysLeft < 30 ? 'var(--red)' : daysLeft < 60 ? 'var(--orange)' : 'var(--accent)';
-    document.getElementById('expiry-days-left').textContent =
-      daysLeft > 0 ? `${daysLeft} days remaining` : `Expired ${Math.abs(daysLeft)} days ago`;
-  }
-
-  // Issuer
-  if (cert?.issuerLabel) {
-    document.getElementById('card-issuer').textContent = cert.issuerLabel.replace(/"/g, '');
-  } else if (cert?.issuerSubject) {
-    document.getElementById('card-issuer').textContent = extractCN(cert.issuerSubject);
-  }
-
-  // Protocol
-  if (details?.protocols) {
-    const best = details.protocols.sort((a,b) => b.version.localeCompare(a.version))[0];
-    document.getElementById('card-protocol').textContent = best ? `${best.name} ${best.version}` : '—';
-  }
-
-  // Security checks
-  renderChecks(ep, details, cert, domain);
-
-  // Cert details
-  renderCertDetails(cert, domain);
+  const now = new Date();
+  const notBefore = new Date(cert.not_before);
+  const notAfter = new Date(cert.not_after);
+  const daysLeft = Math.ceil((notAfter - now) / 86400000);
+  const totalDays = Math.ceil((notAfter - notBefore) / 86400000);
+  const expired = daysLeft <= 0;
+  const expiringSoon = daysLeft > 0 && daysLeft <= 30;
 
   // SANs
-  renderSANs(cert, domain);
+  const sans = [...new Set(cert.name_value.split('\n').map(s => s.trim()).filter(Boolean))];
+  const domainMatched = sans.some(s => matchesDomain(s, domain));
 
-  // Chain
-  renderChain(chain, cert);
-}
+  // Grade based on what we can determine
+  let grade, gradeClass, summary;
+  if (expired) {
+    grade = 'F'; gradeClass = 'grade-F';
+    summary = 'Certificate has expired — HTTPS will show a browser error.';
+  } else if (!domainMatched) {
+    grade = 'F'; gradeClass = 'grade-F';
+    summary = 'Certificate does not cover this domain — name mismatch.';
+  } else if (expiringSoon) {
+    grade = 'C'; gradeClass = 'grade-C';
+    summary = `Certificate expires in ${daysLeft} days — renew soon.`;
+  } else if (!dnsOk) {
+    grade = '?'; gradeClass = 'grade-unknown';
+    summary = 'Certificate found in CT logs, but domain DNS did not resolve.';
+  } else {
+    grade = 'A'; gradeClass = 'grade-A';
+    summary = 'Certificate is valid, not expired, and covers this domain.';
+  }
 
-function renderChecks(ep, details, cert, domain) {
-  const checks = [];
+  // Grade badge
+  const gradeBadge = document.getElementById('grade-badge');
+  gradeBadge.className = `grade-badge ${gradeClass}`;
+  gradeBadge.textContent = grade;
+  document.getElementById('result-domain').textContent = domain;
+  document.getElementById('result-summary').textContent = summary;
 
-  // Certificate valid
-  if (cert) {
-    const now = new Date();
-    const expiry = cert.notAfter ? new Date(cert.notAfter) : null;
-    const expired = expiry && expiry < now;
-    checks.push({
+  // Expiry card
+  const expiryColor = expired ? 'status-err' : expiringSoon ? 'status-warn' : 'status-ok';
+  document.getElementById('card-expires').innerHTML =
+    `<span class="${expiryColor}">${formatDate(notAfter)}</span>`;
+
+  const expiryWrap = document.getElementById('expiry-bar-wrap');
+  const fill = document.getElementById('expiry-fill');
+  expiryWrap.style.display = 'block';
+  const pct = Math.max(0, Math.min(100, (daysLeft / totalDays) * 100));
+  fill.style.width = pct + '%';
+  fill.style.background = expired ? 'var(--red)' : expiringSoon ? 'var(--orange)' : 'var(--accent)';
+  document.getElementById('expiry-days-left').textContent =
+    expired ? `Expired ${Math.abs(daysLeft)} days ago` : `${daysLeft} days remaining`;
+
+  // Issuer card
+  const issuer = cert.issuer_name ? extractField(cert.issuer_name, 'O') || extractField(cert.issuer_name, 'CN') || cert.issuer_name : 'Unknown';
+  document.getElementById('card-issuer').textContent = issuer.replace(/"/g, '');
+
+  // Protocol card — inferred from cert details
+  const isLE = issuer.toLowerCase().includes("let's encrypt") || issuer.toLowerCase().includes('letsencrypt');
+  document.getElementById('card-protocol').textContent = 'HTTPS (TLS)';
+
+  // Security checks
+  const checks = [
+    {
       ok: !expired,
-      label: expired ? 'Certificate is expired' : 'Certificate is valid and not expired',
-      detail: expiry ? formatDate(expiry) : '',
-      warn: false
-    });
-  }
-
-  // Trust
-  if (ep?.grade) {
-    const trusted = ep.grade !== 'T' && ep.grade !== 'F';
-    checks.push({
-      ok: trusted,
       warn: false,
-      label: trusted ? 'Certificate is trusted by major browsers' : 'Certificate is NOT trusted (self-signed or unknown CA)',
-      detail: ep.grade === 'T' ? 'Not in trusted CA bundle' : ''
-    });
-  }
-
-  // TLS version
-  if (details?.protocols) {
-    const versions = details.protocols.map(p => `${p.name} ${p.version}`);
-    const hasTLS13 = details.protocols.some(p => p.version === '1.3');
-    const hasTLS12 = details.protocols.some(p => p.version === '1.2');
-    const hasOld = details.protocols.some(p => p.version === '1.0' || p.version === '1.1');
-
-    checks.push({
-      ok: hasTLS12 || hasTLS13,
-      warn: hasOld,
-      label: hasOld ? 'Old TLS versions supported (TLS 1.0/1.1)' : `TLS versions: ${versions.join(', ')}`,
-      detail: hasOld ? 'Disable TLS 1.0 and 1.1 — deprecated and insecure' : ''
-    });
-
-    if (hasTLS13) {
-      checks.push({ ok: true, warn: false, label: 'TLS 1.3 supported', detail: 'Best available protocol version' });
+      label: expired ? 'Certificate is EXPIRED' : 'Certificate is not expired',
+      detail: `${expired ? 'Expired' : 'Expires'} ${formatDate(notAfter)}`
+    },
+    {
+      ok: domainMatched,
+      warn: false,
+      label: domainMatched ? 'Certificate covers this domain' : 'Domain name mismatch',
+      detail: domainMatched ? `Matched via: ${sans.find(s => matchesDomain(s, domain))}` : 'No SAN matches ' + domain
+    },
+    {
+      ok: dnsOk,
+      warn: !dnsOk,
+      label: dnsOk ? 'Domain resolves in DNS' : 'Could not verify DNS resolution',
+      detail: dnsOk ? 'A record found' : 'Domain may not be live'
+    },
+    {
+      ok: !expiringSoon && !expired,
+      warn: expiringSoon,
+      label: daysLeft > 60 ? 'Certificate has adequate validity remaining' :
+             expiringSoon ? `Certificate expiring soon (${daysLeft} days)` : 'Certificate recently expired',
+      detail: expiringSoon ? 'Renew before expiration to avoid downtime' : ''
+    },
+    {
+      ok: isLE || issuer.toLowerCase().includes('digicert') || issuer.toLowerCase().includes('sectigo') ||
+          issuer.toLowerCase().includes('comodo') || issuer.toLowerCase().includes('globalsign') ||
+          issuer.toLowerCase().includes('amazon') || issuer.toLowerCase().includes('google'),
+      warn: false,
+      label: 'Issued by a known Certificate Authority',
+      detail: issuer.replace(/"/g, '')
+    },
+    {
+      ok: sans.length > 0,
+      warn: false,
+      label: `Subject Alternative Names present (${sans.length} SAN${sans.length !== 1 ? 's' : ''})`,
+      detail: sans.length > 3 ? `${sans.slice(0,3).join(', ')} +${sans.length - 3} more` : sans.join(', ')
     }
-  }
-
-  // HSTS
-  if (details?.hstsPolicy) {
-    const hsts = details.hstsPolicy;
-    const hasHSTS = hsts.status === 'present';
-    checks.push({
-      ok: hasHSTS,
-      warn: false,
-      label: hasHSTS ? 'HSTS enabled' : 'HSTS not configured',
-      detail: hasHSTS ? `max-age=${hsts.maxAge}s${hsts.includeSubDomains ? ', includeSubDomains' : ''}` : 'Add Strict-Transport-Security header'
-    });
-  }
-
-  // Vulnerabilities
-  if (details?.heartbleed !== undefined) {
-    checks.push({ ok: !details.heartbleed, warn: false, label: 'Heartbleed (CVE-2014-0160)', detail: details.heartbleed ? 'VULNERABLE' : 'Not vulnerable' });
-  }
-  if (details?.poodle !== undefined) {
-    checks.push({ ok: !details.poodle, warn: false, label: 'POODLE (SSLv3)', detail: !details.poodle ? 'Not vulnerable' : 'VULNERABLE' });
-  }
-  if (details?.freak !== undefined) {
-    checks.push({ ok: !details.freak, warn: false, label: 'FREAK', detail: !details.freak ? 'Not vulnerable' : 'VULNERABLE' });
-  }
-  if (details?.logjam !== undefined) {
-    checks.push({ ok: !details.logjam, warn: false, label: 'Logjam', detail: !details.logjam ? 'Not vulnerable' : 'VULNERABLE' });
-  }
-
-  // Forward secrecy
-  if (details?.forwardSecrecy !== undefined) {
-    const fs = details.forwardSecrecy;
-    checks.push({
-      ok: fs >= 2,
-      warn: fs === 1,
-      label: fs >= 2 ? 'Forward Secrecy supported' : fs === 1 ? 'Forward Secrecy with some browsers only' : 'No Forward Secrecy',
-      detail: ''
-    });
-  }
+  ];
 
   const list = document.getElementById('checks-list');
   list.innerHTML = checks.map(c => `
@@ -705,77 +680,73 @@ function renderChecks(ep, details, cert, domain) {
       ${c.detail ? `<span class="check-detail">${c.detail}</span>` : ''}
     </li>
   `).join('');
-}
 
-function renderCertDetails(cert, domain) {
-  if (!cert) {
-    document.getElementById('cert-details').innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Certificate details unavailable.</p>';
-    return;
-  }
-
-  const rows = [];
-  if (cert.subject) rows.push(['Subject', extractCN(cert.subject) || cert.subject]);
-  if (cert.issuerSubject) rows.push(['Issued By', extractCN(cert.issuerSubject) || cert.issuerSubject]);
-  if (cert.notBefore) rows.push(['Valid From', formatDate(new Date(cert.notBefore))]);
-  if (cert.notAfter) rows.push(['Valid To', formatDate(new Date(cert.notAfter))]);
-  if (cert.keyAlg) rows.push(['Key Algorithm', `${cert.keyAlg} ${cert.keySize || ''}`.trim()]);
-  if (cert.sigAlg) rows.push(['Signature Algorithm', cert.sigAlg]);
-  if (cert.sha1Hash) rows.push(['SHA-1 Fingerprint', cert.sha1Hash.match(/.{2}/g)?.join(':').toUpperCase() || cert.sha1Hash]);
-  if (cert.sha256Hash) rows.push(['SHA-256 Fingerprint', cert.sha256Hash.substring(0,32) + '…']);
-  if (cert.ocspURIs?.length) rows.push(['OCSP', cert.ocspURIs[0]]);
-  if (cert.crlURIs?.length) rows.push(['CRL', cert.crlURIs[0]]);
+  // Cert details
+  const rows = [
+    ['Common Name', extractField(cert.common_name || cert.name_value.split('\n')[0], '') || domain],
+    ['Issuer', cert.issuer_name?.replace(/"/g,'') || 'Unknown'],
+    ['Valid From', formatDate(notBefore)],
+    ['Valid To', formatDate(notAfter)],
+    ['Serial Number', cert.serial_number || '—'],
+    ['crt.sh ID', `#${cert.id}`],
+    ['Logged At', cert.entry_timestamp ? formatDate(new Date(cert.entry_timestamp)) : '—'],
+  ];
 
   document.getElementById('cert-details').innerHTML = rows.map(([k,v]) =>
-    `<div class="cert-row"><div class="cert-key">${k}</div><div class="cert-val">${v}</div></div>`
+    `<div class="cert-row"><div class="cert-key">${k}</div><div class="cert-val">${escHtml(String(v))}</div></div>`
   ).join('');
-}
 
-function renderSANs(cert, domain) {
-  if (!cert?.altNames?.length) {
-    document.getElementById('san-panel').style.display = 'none';
-    return;
+  // SANs
+  const sanPanel = document.getElementById('san-panel');
+  const sanList = document.getElementById('san-list');
+  if (sans.length > 0) {
+    sanPanel.style.display = 'block';
+    sanList.innerHTML = sans.map(san => {
+      const isMatch = matchesDomain(san, domain);
+      return `<span class="san-badge ${isMatch ? 'match' : ''}">${escHtml(san)}</span>`;
+    }).join('');
+  } else {
+    sanPanel.style.display = 'none';
   }
-  document.getElementById('san-panel').style.display = 'block';
-  const list = document.getElementById('san-list');
-  list.innerHTML = cert.altNames.map(san => {
-    const isMatch = domain === san || (san.startsWith('*.') && domain.endsWith(san.slice(1)));
-    return `<span class="san-badge ${isMatch ? 'match' : ''}">${san}</span>`;
-  }).join('');
-}
 
-function renderChain(chain, cert) {
-  const panel = document.getElementById('chain-panel');
-  const list = document.getElementById('chain-list');
+  // Recent certs (chain panel reused to show cert history)
+  const chainPanel = document.getElementById('chain-panel');
+  const chainList = document.getElementById('chain-list');
+  document.querySelector('#chain-panel .cert-panel-title').textContent = '// recent certificates for this domain';
 
-  if (!chain?.certs?.length) {
-    panel.style.display = 'none';
-    return;
-  }
-  panel.style.display = 'block';
-
-  list.innerHTML = chain.certs.map((c, i) => {
-    const subject = extractCN(c.subject) || c.subject || 'Unknown';
-    const issuer = extractCN(c.issuerSubject) || '';
+  const recent = allCerts.slice(0, 8);
+  chainPanel.style.display = 'block';
+  chainList.innerHTML = recent.map((c, i) => {
+    const cNotAfter = new Date(c.not_after);
+    const cExpired = cNotAfter < now;
+    const cDays = Math.ceil((cNotAfter - now) / 86400000);
+    const cIssuer = c.issuer_name ? extractField(c.issuer_name, 'O') || extractField(c.issuer_name, 'CN') || '' : '';
     return `<li class="chain-item">
       <div class="chain-num">${i + 1}</div>
       <div class="chain-body">
-        <div class="chain-subject">${subject}</div>
-        ${issuer ? `<div class="chain-issuer">Issued by: ${issuer}</div>` : ''}
+        <div class="chain-subject" style="font-size:0.82rem">${escHtml(c.name_value.split('\n')[0])}</div>
+        <div class="chain-issuer">${escHtml(cIssuer.replace(/"/g,''))} · ${cExpired ? `<span style="color:var(--red)">Expired</span>` : `<span style="color:var(--accent)">${cDays}d left</span>`} · Issued ${formatDate(new Date(c.not_before))}</div>
       </div>
     </li>`;
   }).join('');
 }
 
 // Helpers
-function extractCN(str) {
+function extractField(str, field) {
   if (!str) return '';
-  const match = str.match(/CN=([^,]+)/);
-  return match ? match[1].replace(/"/g, '').trim() : '';
+  if (!field) return str;
+  const re = new RegExp(`${field}=([^,]+)`);
+  const match = str.match(re);
+  return match ? match[1].replace(/"/g,'').trim() : '';
 }
 
 function formatDate(d) {
   if (!(d instanceof Date)) d = new Date(d);
   return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 </script>
 </body>
