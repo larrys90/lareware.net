@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DNS Lookup & Propagation Checker — Lareware</title>
+  <meta name="description" content="Free DNS lookup tool. Query A, AAAA, MX, CNAME, TXT, NS, and SOA records. Check DNS propagation across global resolvers including Cloudflare, Google, and more.">
+  <link rel="canonical" href="https://lareware.net/tools/dns-lookup.html">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .dns-container { max-width: 900px; margin: 0 auto; }
+
+    /* Input row */
+    .dns-input-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .dns-input {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1.25rem;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .dns-input:focus { border-color: var(--accent); }
+    .dns-input::placeholder { color: var(--text-muted); }
+
+    .dns-btn {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 8px;
+      padding: 0.85rem 1.75rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: transform 0.2s, box-shadow 0.2s;
+      white-space: nowrap;
+    }
+    .dns-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px var(--accent-dim);
+    }
+    .dns-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Record type tabs */
+    .record-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1.5rem;
+    }
+    .record-tab {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.35rem 0.85rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .record-tab:hover { border-color: var(--accent); color: var(--text); }
+    .record-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    /* Mode toggle */
+    .mode-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+    }
+    .mode-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 1.1rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.2s;
+    }
+    .mode-btn:hover { border-color: var(--accent); color: var(--text); }
+    .mode-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    /* Error */
+    .dns-error {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: var(--red);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+    .dns-error.visible { display: block; }
+
+    /* Results */
+    .results { display: none; }
+    .results.visible { display: block; }
+
+    /* Section title */
+    .result-section-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      margin-bottom: 0.75rem;
+    }
+
+    /* Records table */
+    .records-wrap {
+      margin-bottom: 2rem;
+    }
+    .records-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    .records-table th {
+      text-align: left;
+      padding: 0.6rem 0.85rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .records-table td {
+      padding: 0.55rem 0.85rem;
+      border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      word-break: break-all;
+    }
+    .records-table tr:hover td { background: var(--bg-card); }
+    .type-badge {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+    .type-badge.mx { background: var(--accent2-dim); color: var(--accent2); }
+    .type-badge.txt { background: var(--orange-dim); color: var(--orange); }
+    .type-badge.cname { background: rgba(139,92,246,0.15); color: #a78bfa; }
+    .type-badge.ns { background: rgba(236,72,153,0.12); color: #f472b6; }
+    .type-badge.aaaa { background: rgba(20,184,166,0.15); color: #2dd4bf; }
+    .type-badge.soa { background: var(--orange-dim); color: var(--orange); }
+
+    .no-records {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    /* Propagation grid */
+    .prop-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+    .prop-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .prop-card.loading { opacity: 0.6; }
+    .prop-card.success { border-color: rgba(0,229,153,0.3); }
+    .prop-card.mismatch { border-color: rgba(245,158,11,0.4); }
+    .prop-card.error { border-color: rgba(239,68,68,0.3); }
+    .prop-resolver {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.25rem;
+    }
+    .prop-location {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 0.6rem;
+    }
+    .prop-status {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+    .prop-status.ok { color: var(--accent); }
+    .prop-status.warn { color: var(--orange); }
+    .prop-status.err { color: var(--red); }
+    .prop-status.loading { color: var(--text-muted); }
+    .prop-values {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      word-break: break-all;
+      line-height: 1.5;
+    }
+    .prop-ttl {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-top: 0.35rem;
+    }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 0.35rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Summary bar */
+    .prop-summary {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      flex-wrap: wrap;
+    }
+    .summary-stat .stat-num { font-weight: 700; font-size: 1.1rem; }
+    .summary-stat .stat-label { color: var(--text-muted); font-size: 0.68rem; margin-top: 0.1rem; }
+    .summary-stat.ok .stat-num { color: var(--accent); }
+    .summary-stat.warn .stat-num { color: var(--orange); }
+    .summary-stat.err .stat-num { color: var(--red); }
+
+    @media (max-width: 768px) {
+      .dns-input-row { flex-direction: column; }
+      .prop-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<header class="article-header">
+  <div class="guide-cat">Tool</div>
+  <h1>DNS Lookup & Propagation Checker</h1>
+  <p style="color: var(--text-muted); margin-top: 0.5rem;">Query DNS records for any domain and check propagation across global resolvers. Uses DNS-over-HTTPS — no data touches our servers.</p>
+</header>
+
+<section class="section" style="padding-top: 0;">
+  <div class="dns-container">
+
+    <!-- Input -->
+    <div class="dns-input-row">
+      <input type="text" class="dns-input" id="dns-input" placeholder="e.g. lareware.net or mail.google.com" autocomplete="off" spellcheck="false">
+      <button class="dns-btn" id="lookup-btn" onclick="runLookup()">Lookup</button>
+    </div>
+
+    <!-- Record type tabs -->
+    <div class="record-tabs">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--text-muted);align-self:center;margin-right:0.25rem;text-transform:uppercase;letter-spacing:0.08em;">Type:</span>
+      <button class="record-tab active" data-type="A" onclick="setType('A',this)">A</button>
+      <button class="record-tab" data-type="AAAA" onclick="setType('AAAA',this)">AAAA</button>
+      <button class="record-tab" data-type="MX" onclick="setType('MX',this)">MX</button>
+      <button class="record-tab" data-type="CNAME" onclick="setType('CNAME',this)">CNAME</button>
+      <button class="record-tab" data-type="TXT" onclick="setType('TXT',this)">TXT</button>
+      <button class="record-tab" data-type="NS" onclick="setType('NS',this)">NS</button>
+      <button class="record-tab" data-type="SOA" onclick="setType('SOA',this)">SOA</button>
+    </div>
+
+    <!-- Mode toggle -->
+    <div class="mode-row">
+      <button class="mode-btn active" onclick="setMode('lookup',this)">Single Lookup</button>
+      <button class="mode-btn" onclick="setMode('propagation',this)">Propagation Check</button>
+    </div>
+
+    <!-- Error -->
+    <div class="dns-error" id="dns-error"></div>
+
+    <!-- Results -->
+    <div class="results" id="results">
+
+      <!-- Single lookup results -->
+      <div id="lookup-results">
+        <div class="result-section-title" id="result-title"></div>
+        <div class="records-wrap" id="records-wrap"></div>
+      </div>
+
+      <!-- Propagation results -->
+      <div id="prop-results" style="display:none;">
+        <div class="prop-summary" id="prop-summary"></div>
+        <div class="result-section-title">// resolver results</div>
+        <div class="prop-grid" id="prop-grid"></div>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- SEO content -->
+<div class="article-body">
+  <div class="ad-placeholder">[ ad placement ]</div>
+
+  <h2>Common DNS Record Types</h2>
+  <table>
+    <thead><tr><th>Type</th><th>Purpose</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td>Maps a domain to an IPv4 address</td><td>example.com → 93.184.216.34</td></tr>
+      <tr><td>AAAA</td><td>Maps a domain to an IPv6 address</td><td>example.com → 2606:2800::1</td></tr>
+      <tr><td>MX</td><td>Specifies mail servers for a domain</td><td>example.com → mail.example.com (priority 10)</td></tr>
+      <tr><td>CNAME</td><td>Aliases one domain to another</td><td>www.example.com → example.com</td></tr>
+      <tr><td>TXT</td><td>Arbitrary text, used for SPF, DKIM, and verification</td><td>v=spf1 include:_spf.google.com ~all</td></tr>
+      <tr><td>NS</td><td>Authoritative nameservers for the domain</td><td>ns1.example.com, ns2.example.com</td></tr>
+      <tr><td>SOA</td><td>Start of Authority — zone metadata and serial number</td><td>Primary NS, admin email, refresh intervals</td></tr>
+    </tbody>
+  </table>
+
+  <h2>How to Use DNS Propagation Check</h2>
+  <p>When you update a DNS record, the change doesn't instantly reach every resolver worldwide. Resolvers cache records for the duration of the TTL (Time to Live) value, which can range from 60 seconds to 86400 seconds (24 hours). Until the TTL expires, different users around the world may see different values for the same domain.</p>
+  <p>The propagation checker queries multiple public resolvers simultaneously and shows you whether they all agree. If some resolvers show your old value and others show the new one, propagation is still in progress. Once all resolvers agree, propagation is complete.</p>
+  <p>To speed up propagation before making a planned change, lower your TTL to 300 (5 minutes) a few hours beforehand. After the change is live and stable, raise it back to 3600 or higher.</p>
+
+  <div class="ad-placeholder">[ ad placement ]</div>
+</div>
+
+<div id="newsletter"></div>
+<div id="footer"></div>
+
+<script src="/js/components.js"></script>
+<script>
+// ============================================
+// DNS Lookup & Propagation Checker
+// Uses DNS-over-HTTPS (DoH) — Cloudflare + Google
+// ============================================
+
+let currentType = 'A';
+let currentMode = 'lookup';
+
+// Global resolvers for propagation check
+const RESOLVERS = [
+  { name: '1.1.1.1', label: 'Cloudflare', location: 'Global (Anycast)', url: 'https://cloudflare-dns.com/dns-query' },
+  { name: '8.8.8.8', label: 'Google', location: 'Global (Anycast)', url: 'https://dns.google/resolve' },
+  { name: '9.9.9.9', label: 'Quad9', location: 'Global (Anycast)', url: 'https://dns.quad9.net/dns-query' },
+  { name: '1.0.0.1', label: 'Cloudflare 2', location: 'Global Fallback', url: 'https://cloudflare-dns.com/dns-query' },
+  { name: '8.8.4.4', label: 'Google 2', location: 'Global Fallback', url: 'https://dns.google/resolve' },
+  { name: '208.67.222.222', label: 'OpenDNS', location: 'North America', url: 'https://doh.opendns.com/dns-query' },
+];
+
+// DNS type numbers for DoH API
+const TYPE_NUMS = { A:1, NS:2, CNAME:5, SOA:6, MX:15, TXT:16, AAAA:28 };
+
+function setType(type, btn) {
+  currentType = type;
+  document.querySelectorAll('.record-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function setMode(mode, btn) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+document.getElementById('dns-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runLookup();
+});
+
+function cleanDomain(input) {
+  let d = input.trim().toLowerCase();
+  d = d.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  return d;
+}
+
+function showError(msg) {
+  const el = document.getElementById('dns-error');
+  el.textContent = msg;
+  el.classList.add('visible');
+  document.getElementById('results').classList.remove('visible');
+}
+
+function clearError() {
+  document.getElementById('dns-error').classList.remove('visible');
+}
+
+async function queryDoH(domain, type, resolverUrl) {
+  const typeNum = TYPE_NUMS[type] || 1;
+  const url = `${resolverUrl}?name=${encodeURIComponent(domain)}&type=${typeNum}`;
+  const res = await fetch(url, {
+    headers: { 'Accept': 'application/dns-json' }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function runLookup() {
+  const raw = document.getElementById('dns-input').value;
+  if (!raw.trim()) { showError('Enter a domain name to look up.'); return; }
+
+  const domain = cleanDomain(raw);
+  clearError();
+
+  const btn = document.getElementById('lookup-btn');
+  btn.disabled = true;
+  btn.textContent = 'Looking up…';
+
+  if (currentMode === 'lookup') {
+    await runSingleLookup(domain);
+  } else {
+    await runPropagation(domain);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Lookup';
+}
+
+async function runSingleLookup(domain) {
+  const resultsEl = document.getElementById('results');
+  const titleEl = document.getElementById('result-title');
+  const wrapEl = document.getElementById('records-wrap');
+  const lookupEl = document.getElementById('lookup-results');
+  const propEl = document.getElementById('prop-results');
+
+  lookupEl.style.display = 'block';
+  propEl.style.display = 'none';
+
+  titleEl.textContent = `// ${currentType} records for ${domain}`;
+  wrapEl.innerHTML = `<div class="no-records"><span class="spinner"></span> Querying…</div>`;
+  resultsEl.classList.add('visible');
+
+  try {
+    const data = await queryDoH(domain, currentType, 'https://cloudflare-dns.com/dns-query');
+    renderRecords(data, domain, currentType, wrapEl);
+  } catch (e) {
+    showError(`Query failed: ${e.message}. Check the domain and try again.`);
+  }
+}
+
+function renderRecords(data, domain, type, container) {
+  if (!data.Answer || data.Answer.length === 0) {
+    const status = data.Status === 0 ? 'No records found.' : `DNS error: ${rcode(data.Status)}`;
+    container.innerHTML = `<div class="no-records">${status}</div>`;
+    return;
+  }
+
+  let html = `<table class="records-table"><thead><tr>`;
+  if (type === 'MX') html += `<th>Type</th><th>Priority</th><th>Value</th><th>TTL</th>`;
+  else if (type === 'SOA') html += `<th>Type</th><th>Primary NS</th><th>Admin</th><th>Serial</th><th>TTL</th>`;
+  else html += `<th>Type</th><th>Value</th><th>TTL</th>`;
+  html += `</tr></thead><tbody>`;
+
+  for (const rec of data.Answer) {
+    const recType = typeLabel(rec.type);
+    const badge = `<span class="type-badge ${recType.toLowerCase()}">${recType}</span>`;
+    const ttl = formatTTL(rec.TTL);
+
+    if (type === 'MX') {
+      const parts = rec.data.split(' ');
+      const priority = parts[0];
+      const value = parts.slice(1).join(' ');
+      html += `<tr><td>${badge}</td><td>${priority}</td><td>${value}</td><td>${ttl}</td></tr>`;
+    } else if (type === 'SOA') {
+      const parts = rec.data.split(' ');
+      html += `<tr><td>${badge}</td><td>${parts[0]||'—'}</td><td>${parts[1]||'—'}</td><td>${parts[2]||'—'}</td><td>${ttl}</td></tr>`;
+    } else {
+      html += `<tr><td>${badge}</td><td>${escHtml(rec.data)}</td><td>${ttl}</td></tr>`;
+    }
+  }
+
+  html += `</tbody></table>`;
+  container.innerHTML = html;
+}
+
+async function runPropagation(domain) {
+  const resultsEl = document.getElementById('results');
+  const lookupEl = document.getElementById('lookup-results');
+  const propEl = document.getElementById('prop-results');
+  const gridEl = document.getElementById('prop-grid');
+  const summaryEl = document.getElementById('prop-summary');
+
+  lookupEl.style.display = 'none';
+  propEl.style.display = 'block';
+  resultsEl.classList.add('visible');
+
+  summaryEl.innerHTML = `<span class="spinner"></span> Checking ${RESOLVERS.length} resolvers…`;
+
+  // Build initial cards
+  gridEl.innerHTML = RESOLVERS.map((r, i) => `
+    <div class="prop-card loading" id="prop-card-${i}">
+      <div class="prop-resolver">${r.label} (${r.name})</div>
+      <div class="prop-location">${r.location}</div>
+      <div class="prop-status loading"><span class="spinner"></span> Querying…</div>
+      <div class="prop-values"></div>
+    </div>
+  `).join('');
+
+  // Query all resolvers in parallel
+  const results = await Promise.allSettled(
+    RESOLVERS.map(r => queryDoH(domain, currentType, r.url))
+  );
+
+  // Collect all unique values to detect mismatches
+  const allValues = results.map((r, i) => {
+    if (r.status === 'rejected') return null;
+    return extractValues(r.value, currentType);
+  });
+  const nonNull = allValues.filter(v => v !== null);
+  const referenceValues = nonNull.length > 0 ? nonNull[0] : [];
+  const allMatch = nonNull.every(v => JSON.stringify(v.sort()) === JSON.stringify(referenceValues.slice().sort()));
+
+  let okCount = 0, warnCount = 0, errCount = 0;
+
+  results.forEach((result, i) => {
+    const card = document.getElementById(`prop-card-${i}`);
+    const statusEl = card.querySelector('.prop-status');
+    const valuesEl = card.querySelector('.prop-values');
+    card.classList.remove('loading');
+
+    if (result.status === 'rejected') {
+      card.classList.add('error');
+      statusEl.className = 'prop-status err';
+      statusEl.textContent = '✕ Query failed';
+      valuesEl.textContent = result.reason?.message || 'Network error';
+      errCount++;
+      return;
+    }
+
+    const data = result.value;
+    if (!data.Answer || data.Answer.length === 0) {
+      card.classList.add('error');
+      statusEl.className = 'prop-status err';
+      statusEl.textContent = data.Status === 0 ? '— No records' : `✕ ${rcode(data.Status)}`;
+      valuesEl.textContent = 'No records returned';
+      errCount++;
+      return;
+    }
+
+    const values = extractValues(data, currentType);
+    const myMatch = JSON.stringify(values.sort()) === JSON.stringify(referenceValues.slice().sort());
+    const ttl = data.Answer[0]?.TTL;
+
+    if (myMatch) {
+      card.classList.add('success');
+      statusEl.className = 'prop-status ok';
+      statusEl.textContent = '✓ Propagated';
+      okCount++;
+    } else {
+      card.classList.add('mismatch');
+      statusEl.className = 'prop-status warn';
+      statusEl.textContent = '⚠ Different value';
+      warnCount++;
+    }
+
+    valuesEl.textContent = values.join('\n');
+    if (ttl !== undefined) {
+      const ttlEl = document.createElement('div');
+      ttlEl.className = 'prop-ttl';
+      ttlEl.textContent = `TTL: ${formatTTL(ttl)}`;
+      card.appendChild(ttlEl);
+    }
+  });
+
+  // Summary
+  const total = RESOLVERS.length;
+  const propagated = okCount;
+  const pct = Math.round((propagated / total) * 100);
+
+  summaryEl.innerHTML = `
+    <div class="summary-stat ok">
+      <div class="stat-num">${okCount}</div>
+      <div class="stat-label">Propagated</div>
+    </div>
+    <div class="summary-stat warn">
+      <div class="stat-num">${warnCount}</div>
+      <div class="stat-label">Mismatched</div>
+    </div>
+    <div class="summary-stat err">
+      <div class="stat-num">${errCount}</div>
+      <div class="stat-label">Failed</div>
+    </div>
+    <div class="summary-stat">
+      <div class="stat-num" style="color:var(--accent2)">${pct}%</div>
+      <div class="stat-label">Complete</div>
+    </div>
+    <div class="summary-stat" style="align-self:center;color:var(--text-muted);font-size:0.78rem;font-family:'JetBrains Mono',monospace;">
+      ${domain} · ${currentType} records
+    </div>
+  `;
+}
+
+function extractValues(data, type) {
+  if (!data.Answer) return [];
+  return data.Answer.map(rec => {
+    if (type === 'MX') {
+      const parts = rec.data.split(' ');
+      return parts.slice(1).join(' ').replace(/\.$/, '');
+    }
+    return rec.data.replace(/\.$/, '').replace(/"/g, '').trim();
+  }).sort();
+}
+
+function typeLabel(num) {
+  const map = { 1:'A', 2:'NS', 5:'CNAME', 6:'SOA', 15:'MX', 16:'TXT', 28:'AAAA' };
+  return map[num] || String(num);
+}
+
+function rcode(code) {
+  const map = { 0:'NoError', 1:'FormErr', 2:'ServFail', 3:'NXDomain', 4:'NotImp', 5:'Refused' };
+  return map[code] || `RCODE ${code}`;
+}
+
+function formatTTL(seconds) {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds/60)}m`;
+  return `${Math.floor(seconds/3600)}h`;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>

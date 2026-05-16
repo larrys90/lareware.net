@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSL/TLS Certificate Checker — Lareware</title>
+  <meta name="description" content="Free SSL/TLS certificate checker. Inspect certificate expiration, issuer, chain validity, SANs, and HTTPS configuration for any domain.">
+  <link rel="canonical" href="https://lareware.net/tools/ssl-checker.html">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .ssl-container { max-width: 900px; margin: 0 auto; }
+
+    /* Input */
+    .ssl-input-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+    .ssl-input {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1.25rem;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .ssl-input:focus { border-color: var(--accent); }
+    .ssl-input::placeholder { color: var(--text-muted); }
+
+    .ssl-btn {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 8px;
+      padding: 0.85rem 1.75rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: transform 0.2s, box-shadow 0.2s;
+      white-space: nowrap;
+    }
+    .ssl-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px var(--accent-dim);
+    }
+    .ssl-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Quick examples */
+    .ssl-quick {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+      align-items: center;
+    }
+    .ssl-quick-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .ssl-quick-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 0.25rem 0.6rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .ssl-quick-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    /* Error */
+    .ssl-error {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: var(--red);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+    .ssl-error.visible { display: block; }
+
+    /* Loading */
+    .ssl-loading {
+      text-align: center;
+      padding: 3rem;
+      display: none;
+    }
+    .ssl-loading.visible { display: block; }
+    .ssl-loading-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 1rem;
+    }
+    .big-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Results */
+    .results { display: none; }
+    .results.visible { display: block; }
+
+    /* Grade badge */
+    .grade-row {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .grade-badge {
+      width: 90px;
+      height: 90px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.5rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .grade-A { background: var(--accent-dim); color: var(--accent); border: 2px solid var(--accent); }
+    .grade-B { background: rgba(59,130,246,0.15); color: var(--accent2); border: 2px solid var(--accent2); }
+    .grade-C { background: var(--orange-dim); color: var(--orange); border: 2px solid var(--orange); }
+    .grade-F { background: rgba(239,68,68,0.12); color: var(--red); border: 2px solid var(--red); }
+    .grade-T { background: var(--orange-dim); color: var(--orange); border: 2px solid var(--orange); }
+    .grade-unknown { background: var(--bg-card); color: var(--text-muted); border: 2px solid var(--border); }
+
+    .grade-info h2 { font-size: 1.4rem; margin-bottom: 0.35rem; }
+    .grade-info p { color: var(--text-muted); font-size: 0.9rem; }
+
+    /* Status indicators */
+    .status-ok { color: var(--accent); }
+    .status-warn { color: var(--orange); }
+    .status-err { color: var(--red); }
+    .status-info { color: var(--accent2); }
+
+    /* Info cards grid */
+    .info-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .info-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.1rem;
+    }
+    .info-card-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+    }
+    .info-card-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      font-weight: 600;
+      word-break: break-all;
+    }
+
+    /* Cert detail panel */
+    .cert-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .cert-panel-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+    .cert-row {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 0.5rem;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+    .cert-row:last-child { border-bottom: none; }
+    .cert-key {
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+    }
+    .cert-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      word-break: break-all;
+    }
+
+    /* Chain */
+    .chain-list {
+      list-style: none;
+      margin: 0;
+    }
+    .chain-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .chain-item:last-child { border-bottom: none; }
+    .chain-num {
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 700;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .chain-body { flex: 1; }
+    .chain-subject { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.2rem; }
+    .chain-issuer { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-muted); }
+
+    /* SANs */
+    .san-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .san-badge {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.2rem 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+    .san-badge.match { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    /* Checks */
+    .checks-list { list-style: none; }
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-icon { font-size: 0.9rem; flex-shrink: 0; width: 20px; text-align: center; }
+    .check-label { flex: 1; }
+    .check-detail { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-muted); }
+
+    /* Expiry bar */
+    .expiry-bar-wrap {
+      margin-top: 0.5rem;
+    }
+    .expiry-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 0.25rem;
+    }
+    .expiry-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+
+    @media (max-width: 768px) {
+      .ssl-input-row { flex-direction: column; }
+      .info-cards { grid-template-columns: 1fr; }
+      .cert-row { grid-template-columns: 1fr; }
+      .grade-badge { width: 70px; height: 70px; font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<header class="article-header">
+  <div class="guide-cat">Tool</div>
+  <h1>SSL/TLS Certificate Checker</h1>
+  <p style="color: var(--text-muted); margin-top: 0.5rem;">Inspect SSL certificate expiration, issuer, chain of trust, Subject Alternative Names, and HTTPS configuration for any domain.</p>
+</header>
+
+<section class="section" style="padding-top: 0;">
+  <div class="ssl-container">
+
+    <!-- Input -->
+    <div class="ssl-input-row">
+      <input type="text" class="ssl-input" id="ssl-input" placeholder="e.g. lareware.net or github.com" autocomplete="off" spellcheck="false">
+      <button class="ssl-btn" id="ssl-btn" onclick="checkSSL()">Check</button>
+    </div>
+
+    <!-- Quick examples -->
+    <div class="ssl-quick">
+      <span class="ssl-quick-label">Try:</span>
+      <button class="ssl-quick-btn" onclick="quickCheck('github.com')">github.com</button>
+      <button class="ssl-quick-btn" onclick="quickCheck('google.com')">google.com</button>
+      <button class="ssl-quick-btn" onclick="quickCheck('cloudflare.com')">cloudflare.com</button>
+      <button class="ssl-quick-btn" onclick="quickCheck('expired.badssl.com')">expired cert</button>
+      <button class="ssl-quick-btn" onclick="quickCheck('self-signed.badssl.com')">self-signed</button>
+    </div>
+
+    <!-- Error -->
+    <div class="ssl-error" id="ssl-error"></div>
+
+    <!-- Loading -->
+    <div class="ssl-loading" id="ssl-loading">
+      <div class="big-spinner"></div>
+      <div class="ssl-loading-text" id="loading-text">Fetching certificate data…</div>
+    </div>
+
+    <!-- Results -->
+    <div class="results" id="results">
+
+      <!-- Grade + domain -->
+      <div class="grade-row">
+        <div class="grade-badge" id="grade-badge">—</div>
+        <div class="grade-info">
+          <h2 id="result-domain">—</h2>
+          <p id="result-summary">—</p>
+        </div>
+      </div>
+
+      <!-- Key info cards -->
+      <div class="info-cards">
+        <div class="info-card">
+          <div class="info-card-label">Expires</div>
+          <div class="info-card-value" id="card-expires">—</div>
+          <div class="expiry-bar-wrap" id="expiry-bar-wrap" style="display:none">
+            <div class="expiry-bar"><div class="expiry-fill" id="expiry-fill"></div></div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:var(--text-muted)" id="expiry-days-left"></div>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-label">Issuer</div>
+          <div class="info-card-value" id="card-issuer">—</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-label">Protocol</div>
+          <div class="info-card-value" id="card-protocol">—</div>
+        </div>
+      </div>
+
+      <!-- Security checks -->
+      <div class="cert-panel">
+        <div class="cert-panel-title">// security checks</div>
+        <ul class="checks-list" id="checks-list"></ul>
+      </div>
+
+      <!-- Certificate details -->
+      <div class="cert-panel">
+        <div class="cert-panel-title">// certificate details</div>
+        <div id="cert-details"></div>
+      </div>
+
+      <!-- SANs -->
+      <div class="cert-panel" id="san-panel">
+        <div class="cert-panel-title">// subject alternative names</div>
+        <div class="san-list" id="san-list"></div>
+      </div>
+
+      <!-- Chain -->
+      <div class="cert-panel" id="chain-panel">
+        <div class="cert-panel-title">// certificate chain</div>
+        <ul class="chain-list" id="chain-list"></ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- SEO content -->
+<div class="article-body">
+  <div class="ad-placeholder">[ ad placement ]</div>
+
+  <h2>What This Tool Checks</h2>
+  <p>This checker uses the SSL Labs API — the same service used by security professionals worldwide — to analyze a domain's SSL/TLS configuration. The analysis typically takes 60-90 seconds for a fresh check, or returns instantly if the result is cached. Results are cached by SSL Labs for up to 24 hours.</p>
+
+  <h2>Understanding Your SSL Grade</h2>
+  <table>
+    <thead><tr><th>Grade</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>A / A+</td><td>Excellent configuration. Up-to-date protocols, strong ciphers, no known vulnerabilities.</td></tr>
+      <tr><td>B</td><td>Good but improvable — often caused by supporting TLS 1.0/1.1 or weaker cipher suites.</td></tr>
+      <tr><td>C</td><td>Weak configuration. Usually older protocol support or RC4 ciphers still enabled.</td></tr>
+      <tr><td>F</td><td>Failed — expired certificate, revoked cert, or broken chain.</td></tr>
+      <tr><td>T</td><td>Certificate not trusted — self-signed or issued by an unknown CA.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Certificate Expiration</h2>
+  <p>Most modern CAs issue certificates with 90-day validity (Let's Encrypt) or up to 398 days (commercial CAs). Monitor expiration proactively — a lapsed certificate takes your site offline for users without warning. Tools like Uptime Kuma and Grafana can send alerts before expiration. Alternatively, set a calendar reminder 30 days before the expiry date shown here.</p>
+
+  <h2>Subject Alternative Names (SANs)</h2>
+  <p>Modern certificates use SANs instead of the CN (Common Name) field to specify which domains they're valid for. A wildcard SAN like <code>*.example.com</code> covers all subdomains one level deep. This tool shows all SANs on the certificate and highlights which one matches your queried domain.</p>
+
+  <div class="ad-placeholder">[ ad placement ]</div>
+</div>
+
+<div id="newsletter"></div>
+<div id="footer"></div>
+
+<script src="/js/components.js"></script>
+<script>
+// ============================================
+// SSL/TLS Certificate Checker
+// Uses SSL Labs API (free, no key required)
+// + crt.sh for supplementary cert data
+// ============================================
+
+const SSLLABS_API = 'https://api.ssllabs.com/api/v3';
+
+document.getElementById('ssl-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkSSL();
+});
+
+function quickCheck(domain) {
+  document.getElementById('ssl-input').value = domain;
+  checkSSL();
+}
+
+function cleanDomain(input) {
+  let d = input.trim().toLowerCase();
+  d = d.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:.*$/, '');
+  return d;
+}
+
+function showError(msg) {
+  const el = document.getElementById('ssl-error');
+  el.textContent = msg;
+  el.classList.add('visible');
+  document.getElementById('ssl-loading').classList.remove('visible');
+  document.getElementById('results').classList.remove('visible');
+}
+
+function clearUI() {
+  document.getElementById('ssl-error').classList.remove('visible');
+  document.getElementById('ssl-loading').classList.remove('visible');
+  document.getElementById('results').classList.remove('visible');
+}
+
+function setLoading(msg) {
+  document.getElementById('loading-text').textContent = msg;
+  document.getElementById('ssl-loading').classList.add('visible');
+  document.getElementById('results').classList.remove('visible');
+}
+
+async function checkSSL() {
+  const raw = document.getElementById('ssl-input').value;
+  if (!raw.trim()) { showError('Enter a domain name to check.'); return; }
+
+  const domain = cleanDomain(raw);
+  clearUI();
+  setLoading('Submitting to SSL Labs API…');
+
+  const btn = document.getElementById('ssl-btn');
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+
+  try {
+    const data = await pollSSLLabs(domain);
+    renderResults(domain, data);
+  } catch (e) {
+    showError(e.message || 'SSL check failed. The SSL Labs API may be busy — try again in a moment.');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Check';
+}
+
+async function pollSSLLabs(domain) {
+  // Start or get analysis
+  let url = `${SSLLABS_API}/analyze?host=${encodeURIComponent(domain)}&all=done&ignoreMismatch=on`;
+  let attempts = 0;
+  const maxAttempts = 30;
+
+  while (attempts < maxAttempts) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`SSL Labs API error: HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (data.status === 'ERROR') {
+      throw new Error(data.statusMessage || 'SSL Labs returned an error.');
+    }
+
+    if (data.status === 'READY') {
+      return data;
+    }
+
+    // Still running — show progress
+    const msg = data.status === 'DNS' ? 'Resolving DNS…' :
+                data.status === 'IN_PROGRESS' ? `Analyzing… (${data.endpoints?.[0]?.progress || 0}%)` :
+                `Status: ${data.status}…`;
+    setLoading(msg);
+
+    // After first call, use fromCache=on to avoid re-triggering
+    url = `${SSLLABS_API}/analyze?host=${encodeURIComponent(domain)}&all=done&ignoreMismatch=on&fromCache=on`;
+
+    await sleep(3000);
+    attempts++;
+  }
+
+  throw new Error('Analysis timed out. The SSL Labs API may be busy. Try again shortly.');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function renderResults(domain, data) {
+  document.getElementById('ssl-loading').classList.remove('visible');
+  document.getElementById('results').classList.add('visible');
+
+  const ep = data.endpoints?.[0];
+  const details = ep?.details;
+  const cert = details?.cert;
+  const chain = details?.chain;
+
+  // Grade
+  const grade = ep?.grade || '?';
+  const gradeBadge = document.getElementById('grade-badge');
+  const gradeClass = grade.startsWith('A') ? 'grade-A' : grade.startsWith('B') ? 'grade-B' :
+                     grade.startsWith('C') ? 'grade-C' : grade === 'F' ? 'grade-F' :
+                     grade === 'T' ? 'grade-T' : 'grade-unknown';
+  gradeBadge.className = `grade-badge ${gradeClass}`;
+  gradeBadge.textContent = grade;
+
+  document.getElementById('result-domain').textContent = domain;
+  document.getElementById('result-summary').textContent = ep?.statusMessage || data.statusMessage || '';
+
+  // Expiry
+  if (cert?.notAfter) {
+    const expiry = new Date(cert.notAfter);
+    const now = new Date();
+    const daysLeft = Math.ceil((expiry - now) / 86400000);
+    const notBefore = cert.notAfter && cert.notBefore ? new Date(cert.notBefore) : null;
+    const totalDays = notBefore ? Math.ceil((expiry - notBefore) / 86400000) : 365;
+    const pct = Math.max(0, Math.min(100, (daysLeft / totalDays) * 100));
+
+    document.getElementById('card-expires').innerHTML =
+      `<span class="${daysLeft < 30 ? 'status-err' : daysLeft < 60 ? 'status-warn' : 'status-ok'}">${formatDate(expiry)}</span>`;
+
+    const expiryWrap = document.getElementById('expiry-bar-wrap');
+    const fill = document.getElementById('expiry-fill');
+    expiryWrap.style.display = 'block';
+    fill.style.width = pct + '%';
+    fill.style.background = daysLeft < 30 ? 'var(--red)' : daysLeft < 60 ? 'var(--orange)' : 'var(--accent)';
+    document.getElementById('expiry-days-left').textContent =
+      daysLeft > 0 ? `${daysLeft} days remaining` : `Expired ${Math.abs(daysLeft)} days ago`;
+  }
+
+  // Issuer
+  if (cert?.issuerLabel) {
+    document.getElementById('card-issuer').textContent = cert.issuerLabel.replace(/"/g, '');
+  } else if (cert?.issuerSubject) {
+    document.getElementById('card-issuer').textContent = extractCN(cert.issuerSubject);
+  }
+
+  // Protocol
+  if (details?.protocols) {
+    const best = details.protocols.sort((a,b) => b.version.localeCompare(a.version))[0];
+    document.getElementById('card-protocol').textContent = best ? `${best.name} ${best.version}` : '—';
+  }
+
+  // Security checks
+  renderChecks(ep, details, cert, domain);
+
+  // Cert details
+  renderCertDetails(cert, domain);
+
+  // SANs
+  renderSANs(cert, domain);
+
+  // Chain
+  renderChain(chain, cert);
+}
+
+function renderChecks(ep, details, cert, domain) {
+  const checks = [];
+
+  // Certificate valid
+  if (cert) {
+    const now = new Date();
+    const expiry = cert.notAfter ? new Date(cert.notAfter) : null;
+    const expired = expiry && expiry < now;
+    checks.push({
+      ok: !expired,
+      label: expired ? 'Certificate is expired' : 'Certificate is valid and not expired',
+      detail: expiry ? formatDate(expiry) : '',
+      warn: false
+    });
+  }
+
+  // Trust
+  if (ep?.grade) {
+    const trusted = ep.grade !== 'T' && ep.grade !== 'F';
+    checks.push({
+      ok: trusted,
+      warn: false,
+      label: trusted ? 'Certificate is trusted by major browsers' : 'Certificate is NOT trusted (self-signed or unknown CA)',
+      detail: ep.grade === 'T' ? 'Not in trusted CA bundle' : ''
+    });
+  }
+
+  // TLS version
+  if (details?.protocols) {
+    const versions = details.protocols.map(p => `${p.name} ${p.version}`);
+    const hasTLS13 = details.protocols.some(p => p.version === '1.3');
+    const hasTLS12 = details.protocols.some(p => p.version === '1.2');
+    const hasOld = details.protocols.some(p => p.version === '1.0' || p.version === '1.1');
+
+    checks.push({
+      ok: hasTLS12 || hasTLS13,
+      warn: hasOld,
+      label: hasOld ? 'Old TLS versions supported (TLS 1.0/1.1)' : `TLS versions: ${versions.join(', ')}`,
+      detail: hasOld ? 'Disable TLS 1.0 and 1.1 — deprecated and insecure' : ''
+    });
+
+    if (hasTLS13) {
+      checks.push({ ok: true, warn: false, label: 'TLS 1.3 supported', detail: 'Best available protocol version' });
+    }
+  }
+
+  // HSTS
+  if (details?.hstsPolicy) {
+    const hsts = details.hstsPolicy;
+    const hasHSTS = hsts.status === 'present';
+    checks.push({
+      ok: hasHSTS,
+      warn: false,
+      label: hasHSTS ? 'HSTS enabled' : 'HSTS not configured',
+      detail: hasHSTS ? `max-age=${hsts.maxAge}s${hsts.includeSubDomains ? ', includeSubDomains' : ''}` : 'Add Strict-Transport-Security header'
+    });
+  }
+
+  // Vulnerabilities
+  if (details?.heartbleed !== undefined) {
+    checks.push({ ok: !details.heartbleed, warn: false, label: 'Heartbleed (CVE-2014-0160)', detail: details.heartbleed ? 'VULNERABLE' : 'Not vulnerable' });
+  }
+  if (details?.poodle !== undefined) {
+    checks.push({ ok: !details.poodle, warn: false, label: 'POODLE (SSLv3)', detail: !details.poodle ? 'Not vulnerable' : 'VULNERABLE' });
+  }
+  if (details?.freak !== undefined) {
+    checks.push({ ok: !details.freak, warn: false, label: 'FREAK', detail: !details.freak ? 'Not vulnerable' : 'VULNERABLE' });
+  }
+  if (details?.logjam !== undefined) {
+    checks.push({ ok: !details.logjam, warn: false, label: 'Logjam', detail: !details.logjam ? 'Not vulnerable' : 'VULNERABLE' });
+  }
+
+  // Forward secrecy
+  if (details?.forwardSecrecy !== undefined) {
+    const fs = details.forwardSecrecy;
+    checks.push({
+      ok: fs >= 2,
+      warn: fs === 1,
+      label: fs >= 2 ? 'Forward Secrecy supported' : fs === 1 ? 'Forward Secrecy with some browsers only' : 'No Forward Secrecy',
+      detail: ''
+    });
+  }
+
+  const list = document.getElementById('checks-list');
+  list.innerHTML = checks.map(c => `
+    <li class="check-item">
+      <span class="check-icon ${c.ok ? 'status-ok' : c.warn ? 'status-warn' : 'status-err'}">${c.ok ? '✓' : c.warn ? '⚠' : '✕'}</span>
+      <span class="check-label">${c.label}</span>
+      ${c.detail ? `<span class="check-detail">${c.detail}</span>` : ''}
+    </li>
+  `).join('');
+}
+
+function renderCertDetails(cert, domain) {
+  if (!cert) {
+    document.getElementById('cert-details').innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Certificate details unavailable.</p>';
+    return;
+  }
+
+  const rows = [];
+  if (cert.subject) rows.push(['Subject', extractCN(cert.subject) || cert.subject]);
+  if (cert.issuerSubject) rows.push(['Issued By', extractCN(cert.issuerSubject) || cert.issuerSubject]);
+  if (cert.notBefore) rows.push(['Valid From', formatDate(new Date(cert.notBefore))]);
+  if (cert.notAfter) rows.push(['Valid To', formatDate(new Date(cert.notAfter))]);
+  if (cert.keyAlg) rows.push(['Key Algorithm', `${cert.keyAlg} ${cert.keySize || ''}`.trim()]);
+  if (cert.sigAlg) rows.push(['Signature Algorithm', cert.sigAlg]);
+  if (cert.sha1Hash) rows.push(['SHA-1 Fingerprint', cert.sha1Hash.match(/.{2}/g)?.join(':').toUpperCase() || cert.sha1Hash]);
+  if (cert.sha256Hash) rows.push(['SHA-256 Fingerprint', cert.sha256Hash.substring(0,32) + '…']);
+  if (cert.ocspURIs?.length) rows.push(['OCSP', cert.ocspURIs[0]]);
+  if (cert.crlURIs?.length) rows.push(['CRL', cert.crlURIs[0]]);
+
+  document.getElementById('cert-details').innerHTML = rows.map(([k,v]) =>
+    `<div class="cert-row"><div class="cert-key">${k}</div><div class="cert-val">${v}</div></div>`
+  ).join('');
+}
+
+function renderSANs(cert, domain) {
+  if (!cert?.altNames?.length) {
+    document.getElementById('san-panel').style.display = 'none';
+    return;
+  }
+  document.getElementById('san-panel').style.display = 'block';
+  const list = document.getElementById('san-list');
+  list.innerHTML = cert.altNames.map(san => {
+    const isMatch = domain === san || (san.startsWith('*.') && domain.endsWith(san.slice(1)));
+    return `<span class="san-badge ${isMatch ? 'match' : ''}">${san}</span>`;
+  }).join('');
+}
+
+function renderChain(chain, cert) {
+  const panel = document.getElementById('chain-panel');
+  const list = document.getElementById('chain-list');
+
+  if (!chain?.certs?.length) {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = 'block';
+
+  list.innerHTML = chain.certs.map((c, i) => {
+    const subject = extractCN(c.subject) || c.subject || 'Unknown';
+    const issuer = extractCN(c.issuerSubject) || '';
+    return `<li class="chain-item">
+      <div class="chain-num">${i + 1}</div>
+      <div class="chain-body">
+        <div class="chain-subject">${subject}</div>
+        ${issuer ? `<div class="chain-issuer">Issued by: ${issuer}</div>` : ''}
+      </div>
+    </li>`;
+  }).join('');
+}
+
+// Helpers
+function extractCN(str) {
+  if (!str) return '';
+  const match = str.match(/CN=([^,]+)/);
+  return match ? match[1].replace(/"/g, '').trim() : '';
+}
+
+function formatDate(d) {
+  if (!(d instanceof Date)) d = new Date(d);
+  return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+}
+</script>
+</body>
+</html>
