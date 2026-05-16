@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AWS vs Azure vs GCP: Honest Comparison for Sysadmins (2026) — Lareware</title>
+  <meta name="description" content="A plain-English comparison of AWS, Azure, and Google Cloud for sysadmins and IT professionals. Free tiers, real pricing, honest gotchas, and which one to learn first.">
+  <link rel="canonical" href="https://lareware.net/guides/aws-vs-azure-vs-gcp.html">
+  <meta property="og:title" content="AWS vs Azure vs GCP: Honest Comparison for Sysadmins (2026)">
+  <meta property="og:description" content="A plain-English comparison of AWS, Azure, and Google Cloud — free tiers, real pricing, honest gotchas, and which one to learn first.">
+  <meta property="og:type" content="article">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+<div id="nav"></div>
+
+<article>
+  <header class="article-header">
+    <div class="guide-cat">Cloud</div>
+    <h1>AWS vs Azure vs GCP: Honest Comparison for Sysadmins</h1>
+    <div class="article-meta">
+      <time datetime="2026-05-15">May 15, 2026</time>
+      <span>· 14 min read</span>
+    </div>
+  </header>
+
+  <div class="article-body">
+
+    <div class="toc">
+      <div class="toc-label">// contents</div>
+      <ul>
+        <li><a href="#what-is-cloud">What Is Cloud Computing, Really?</a></li>
+        <li><a href="#the-three">The Three Providers at a Glance</a></li>
+        <li><a href="#free-tiers">Free Tiers: What You Actually Get</a></li>
+        <li><a href="#pricing">Pricing: Where the Real Differences Are</a></li>
+        <li><a href="#aws">AWS: The Market Leader</a></li>
+        <li><a href="#azure">Azure: The Microsoft Cloud</a></li>
+        <li><a href="#gcp">GCP: The Google Cloud</a></li>
+        <li><a href="#gotchas">Honest Gotchas on All Three</a></li>
+        <li><a href="#which-first">Which One Should You Learn First?</a></li>
+        <li><a href="#for-homelabbers">A Note for Homelab Users</a></li>
+        <li><a href="#bottom-line">The Bottom Line</a></li>
+      </ul>
+    </div>
+
+    <div class="ad-placeholder">[ ad placement ]</div>
+
+    <p>Every "AWS vs Azure vs GCP" article on the internet seems written for enterprises spending six figures a month on cloud infrastructure. This one isn't. It's written for sysadmins, IT professionals, and homelab enthusiasts who want to understand the real differences between the three major cloud providers — without the marketing language and without assuming you already know what a VPC is.</p>
+
+    <p>One honest disclaimer upfront: cloud pricing changes frequently, and the exact numbers in this article reflect research from May 2026. Always verify current pricing on the official calculators before making decisions. Links to each are at the bottom.</p>
+
+    <h2 id="what-is-cloud">What Is Cloud Computing, Really?</h2>
+
+    <p>Before comparing providers, it helps to understand what cloud computing actually is — because the term gets thrown around loosely.</p>
+
+    <p>At its core, cloud computing means renting computing resources (servers, storage, networking, databases, etc.) from someone else's data center instead of buying and running your own hardware. You pay for what you use, you can scale up or down quickly, and you don't have to worry about the physical hardware.</p>
+
+    <p>There are a few levels to this:</p>
+
+    <ul>
+      <li><strong>IaaS (Infrastructure as a Service):</strong> You rent virtual machines, storage, and networking. You're responsible for the operating system and everything above it. This is closest to running your own server. Examples: AWS EC2, Azure Virtual Machines, Google Compute Engine.</li>
+      <li><strong>PaaS (Platform as a Service):</strong> The provider manages the OS and runtime, you just deploy your application. Examples: AWS Elastic Beanstalk, Azure App Service, Google App Engine.</li>
+      <li><strong>SaaS (Software as a Service):</strong> Fully managed applications you just use. Examples: Gmail, Microsoft 365, Salesforce — you probably already use these.</li>
+    </ul>
+
+    <p>For sysadmins, most of the interesting work is at the IaaS and PaaS layers. That's what this guide focuses on.</p>
+
+    <h2 id="the-three">The Three Providers at a Glance</h2>
+
+    <p>Here's the honest summary of where each provider stands in 2026:</p>
+
+    <table>
+      <thead>
+        <tr><th>Provider</th><th>Market Share</th><th>Best Known For</th><th>Primary Weakness</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>AWS</td><td>~31%</td><td>Breadth of services, largest community</td><td>Complexity, costs can surprise you</td></tr>
+        <tr><td>Azure</td><td>~23–25%</td><td>Microsoft integration, enterprise compliance</td><td>Confusing portal, pricing complexity</td></tr>
+        <tr><td>GCP</td><td>~11–12%</td><td>Kubernetes, data analytics, pricing transparency</td><td>Smaller community, fewer services</td></tr>
+      </tbody>
+    </table>
+
+    <p>Together these three control roughly 68% of the global cloud market. They're all legitimate, all mature, and all capable of running serious production workloads. The differences are real but often overstated in marketing materials. All three can do almost everything you need — the question is which one fits your situation.</p>
+
+    <h2 id="free-tiers">Free Tiers: What You Actually Get</h2>
+
+    <p>All three providers have free tiers, but they're structured differently. This matters a lot for learning and experimentation.</p>
+
+    <h3>AWS Free Tier</h3>
+
+    <p>AWS has two types of free offerings:</p>
+
+    <ul>
+      <li><strong>12 months free</strong> for new accounts — 750 hours/month of a t2.micro or t3.micro instance (1 vCPU, 1GB RAM), 5GB of S3 storage, 750 hours of RDS (managed database), and more. The 750 hours works out to running one instance continuously all month. After 12 months, these go away.</li>
+      <li><strong>Always free</strong> — 1 million Lambda function calls/month, 25GB of DynamoDB storage, 1 million SQS message requests, and various developer tools. These don't expire.</li>
+    </ul>
+
+    <p>The 12-month tier is generous but has a clock on it. Many beginners accidentally go over the free tier limits and get surprised by their first AWS bill. AWS will not warn you in real time — you need to set up billing alerts manually.</p>
+
+    <h3>Azure Free Tier</h3>
+
+    <ul>
+      <li><strong>$200 credit</strong> for the first 30 days — use it on anything.</li>
+      <li><strong>12 months free</strong> — 750 hours/month of a B1S VM (1 vCPU, 1GB RAM), 64GB of managed disk storage, 5GB of Blob storage, and various AI/ML services.</li>
+      <li><strong>Always free</strong> — Azure Kubernetes Service (AKS) management layer is free, Azure DevOps for small teams, Azure Cosmos DB (5GB), App Service (10 apps), and more.</li>
+    </ul>
+
+    <p>Azure's free tier is broadly similar to AWS but structured around Microsoft's ecosystem. If you're already using Microsoft 365 or have a school/work email, you may be eligible for additional credits.</p>
+
+    <h3>GCP Free Tier</h3>
+
+    <ul>
+      <li><strong>$300 credit</strong> for the first 90 days — more generous time window than Azure, though it expires after 90 days regardless of whether you've used it.</li>
+      <li><strong>Always free</strong> — 1 e2-micro instance per month (2 vCPUs shared, 1GB RAM) <em>permanently</em>, in select US regions. Also includes 5GB of Cloud Storage (US regions), 1TB of BigQuery queries/month, and 2 million Cloud Functions invocations.</li>
+    </ul>
+
+    <blockquote>The GCP e2-micro is genuinely the best always-free compute option among the three. AWS and Azure give you bigger free instances for 12 months, then charge you. GCP gives you a smaller instance forever. For running a lightweight app, a personal project, or a learning environment with no time limit, GCP's always-free tier wins.</blockquote>
+
+    <h2 id="pricing">Pricing: Where the Real Differences Are</h2>
+
+    <p>All three providers price on-demand compute similarly — a 4 vCPU, 16GB RAM Linux instance costs roughly $0.19/hour on any of them in a US region. Cloud providers actively monitor each other's prices and stay competitive at the headline level.</p>
+
+    <p>The real differences are in the details:</p>
+
+    <h3>Egress (data transfer out) costs</h3>
+
+    <p>This is where many people get surprised. All three providers charge you when data leaves their network. As of 2026:</p>
+
+    <ul>
+      <li><strong>AWS:</strong> ~$0.09/GB egress after the first 100GB/month free</li>
+      <li><strong>Azure:</strong> ~$0.087/GB for the first 5TB/month — cheapest of the three</li>
+      <li><strong>GCP:</strong> ~$0.12/GB standard egress — most expensive at the list rate, but if you put Cloudflare in front of your GCP workload, most traffic exits through Cloudflare instead and the egress fees largely disappear</li>
+    </ul>
+
+    <p>For a homelab-scale project or small personal app, egress costs are usually negligible. For anything serving real traffic, it's worth modeling out before you commit.</p>
+
+    <h3>Committed use and reservations</h3>
+
+    <p>All three offer significant discounts — 30-60% — if you commit to using a certain amount of resources for 1 or 3 years:</p>
+
+    <ul>
+      <li><strong>AWS Savings Plans</strong> — you commit to a dollar amount per hour, not a specific instance type. Most flexible — if you switch between instance sizes or families, the commitment still applies.</li>
+      <li><strong>Azure Reserved Instances</strong> — you commit to a specific VM size in a specific region. Less flexible than AWS but can reach ~60% discount at 3 years.</li>
+      <li><strong>GCP Committed Use Discounts (CUDs)</strong> — you commit to a number of vCPUs and GB of RAM. Also includes automatic "sustained use discounts" — if a VM runs for a large portion of the month, GCP automatically discounts it by up to 20% with no reservation required.</li>
+    </ul>
+
+    <p>For most beginners and homelab use cases, none of this matters yet — you'll be on free tiers or on-demand pricing. It's good to know exists for when you're evaluating cloud for a job or a more serious project.</p>
+
+    <h3>Kubernetes control plane fees</h3>
+
+    <p>This one surprises a lot of people. If you run Kubernetes (a container orchestration system), the management layer has a cost:</p>
+
+    <ul>
+      <li><strong>AWS EKS:</strong> $73/month per cluster</li>
+      <li><strong>Azure AKS:</strong> Free — you only pay for the VMs</li>
+      <li><strong>GCP GKE:</strong> One free cluster per account, $73/month after that</li>
+    </ul>
+
+    <p>For anyone running Kubernetes in production, Azure AKS's free control plane is a meaningful savings.</p>
+
+    <h2 id="aws">AWS: The Market Leader</h2>
+
+    <p>AWS is where cloud computing started (2006), and it still leads the market with roughly 31% share. It has over 200 services covering almost everything imaginable — databases, AI, IoT, media processing, satellite data, quantum computing. If there's a managed service for it, AWS probably has it.</p>
+
+    <h3>Where AWS genuinely wins</h3>
+
+    <ul>
+      <li><strong>Community and documentation.</strong> More Stack Overflow answers, more tutorials, more courses, more people who've hit your exact problem and solved it. When something breaks at 2 AM, this matters more than any feature comparison.</li>
+      <li><strong>Job market relevance.</strong> AWS certifications (Solutions Architect, SysOps Administrator, etc.) are the most recognized in the industry. If your goal is to add cloud skills to your resume, AWS certs open the most doors.</li>
+      <li><strong>Service breadth.</strong> If you need a very specific managed service, AWS probably has it. GCP and Azure have caught up on most things, but AWS still leads on the long tail of specialized services.</li>
+      <li><strong>Spot Instances.</strong> AWS has the most mature system for using spare compute capacity at deep discounts (50-90% off on-demand). For batch processing, rendering, or any interruptible workload, AWS Spot Fleet is the gold standard.</li>
+    </ul>
+
+    <h3>Where AWS struggles</h3>
+
+    <ul>
+      <li><strong>Complexity.</strong> 200+ services means 200+ things to learn. The AWS console can be overwhelming for beginners. Service names aren't always intuitive (what does "Elastic Beanstalk" do? What about "Glue"?).</li>
+      <li><strong>Billing surprises.</strong> AWS billing is detailed and flexible, which is good for large organizations but can result in surprise bills for beginners who don't understand the cost model of every service they enable.</li>
+    </ul>
+
+    <h2 id="azure">Azure: The Microsoft Cloud</h2>
+
+    <p>Azure is Microsoft's cloud platform, and it's growing faster than AWS in absolute revenue terms. It holds roughly 23-25% market share and is the dominant choice for organizations already using Microsoft products.</p>
+
+    <h3>Where Azure genuinely wins</h3>
+
+    <ul>
+      <li><strong>Microsoft environment integration.</strong> If your organization runs Active Directory, Windows Server, Microsoft 365, or SQL Server, Azure fits naturally. Azure Active Directory (now called Entra ID) makes single sign-on and identity management seamless for Windows shops. Hybrid setups where some workloads stay on-premises and others go to the cloud are Azure's home turf.</li>
+      <li><strong>Windows licensing (Hybrid Benefit).</strong> If your company has existing Windows Server licenses, Azure Hybrid Benefit can reduce your VM costs by up to 80% compared to the on-demand rate. This is a massive advantage for Windows-heavy environments that neither AWS nor GCP can match.</li>
+      <li><strong>Compliance certifications.</strong> Azure has the most compliance certifications of any cloud provider — important for healthcare, government, and financial organizations that need to meet specific regulatory standards.</li>
+      <li><strong>OpenAI partnership.</strong> Azure has an exclusive partnership with OpenAI for commercial deployment of GPT models. If your organization wants to build on top of GPT-4 or later models through a corporate agreement, Azure is currently the primary path.</li>
+    </ul>
+
+    <h3>Where Azure struggles</h3>
+
+    <ul>
+      <li><strong>Portal complexity.</strong> The Azure portal has a reputation for being confusing. Services get renamed, moved, and reorganized regularly. Experienced Azure users often just use the CLI to avoid the portal.</li>
+      <li><strong>Less relevant outside Microsoft environments.</strong> If you're not in a Windows shop, Azure's primary advantages (Microsoft integration) don't apply, and you're left with a provider that's generally competitive but not clearly better than the alternatives.</li>
+    </ul>
+
+    <h2 id="gcp">GCP: The Google Cloud</h2>
+
+    <p>Google Cloud Platform holds roughly 11-12% of the market — the smallest of the three — but it's growing fastest by percentage and has genuine technical strengths that the others don't match.</p>
+
+    <h3>Where GCP genuinely wins</h3>
+
+    <ul>
+      <li><strong>Kubernetes.</strong> Kubernetes was invented at Google, and GKE (Google Kubernetes Engine) is widely considered the best managed Kubernetes offering. If container orchestration is your primary workload, GCP is worth a serious look.</li>
+      <li><strong>Pricing transparency.</strong> GCP's pricing is generally cleaner and easier to understand than AWS or Azure. The automatic sustained use discounts (no reservation required) are unique to GCP and genuinely useful.</li>
+      <li><strong>Best always-free compute.</strong> The e2-micro is the only always-free VM that never expires. For personal projects and learning, this is a real advantage.</li>
+      <li><strong>BigQuery for analytics.</strong> If you work with large datasets, BigQuery is GCP's standout service — a serverless data warehouse that's often 30-50% cheaper than AWS Redshift or Azure Synapse for bursty query patterns, and much easier to get started with.</li>
+      <li><strong>Network performance.</strong> Google runs one of the largest private fiber networks in the world. GCP workloads benefit from this for low-latency, high-throughput applications.</li>
+    </ul>
+
+    <h3>Where GCP struggles</h3>
+
+    <ul>
+      <li><strong>Smaller community.</strong> Fewer tutorials, fewer Stack Overflow answers, fewer people who've solved your specific problem. GCP documentation is generally good, but the community support gap vs AWS is real.</li>
+      <li><strong>History of discontinuing products.</strong> Google has a well-documented reputation for shutting down products (see: Google Reader, Google+, Google Stadia). While core cloud services are unlikely to disappear, some organizations are cautious about depending on GCP for this reason. It's worth knowing about, even if the concern is often overstated for enterprise cloud services.</li>
+      <li><strong>Fewer managed services.</strong> GCP has fewer services than AWS overall, though it covers the common needs well. If you need something very specific, check that GCP has it before committing.</li>
+    </ul>
+
+    <h2 id="gotchas">Honest Gotchas on All Three</h2>
+
+    <p>No comparison would be complete without calling out the traps that catch beginners on every platform:</p>
+
+    <p><strong>Egress fees on all three.</strong> Data going into the cloud is free. Data coming out costs money. This is how all three providers make money on storage-heavy workloads. If you're storing a lot of data in the cloud and regularly pulling it out, model this cost carefully.</p>
+
+    <p><strong>NAT gateway / data processing fees.</strong> If your VMs don't have public IPs and need to reach the internet through a NAT gateway, all three charge for data processed through it. This can quietly add $30-100/month to a setup that looks cheap on paper.</p>
+
+    <p><strong>Cross-availability-zone traffic.</strong> All three split their regions into "availability zones" (multiple data centers in the same region). Moving data between AZs costs money — roughly $0.01/GB — which adds up for distributed systems. Traffic within the same AZ is free.</p>
+
+    <p><strong>Support plan costs.</strong> The default (free) support tier on all three gives you documentation and community forums. If you want someone to actually answer questions, paid support starts at $29/month on AWS, $29/month on Azure (Developer), and $29/month on GCP (Basic). Production-grade support with response time guarantees starts around $100/month and goes up rapidly. Factor this in for business use.</p>
+
+    <p><strong>Idle resources still cost money.</strong> A stopped VM on AWS still charges for the EBS disk attached to it. A halted VM on GCP doesn't charge for compute but still charges for the disk. The only way to stop paying entirely is to delete the resource — which means you've lost your data and configuration. Learn snapshots and backups early.</p>
+
+    <h2 id="which-first">Which One Should You Learn First?</h2>
+
+    <p>This is the question most sysadmins actually want answered. Here's an honest take:</p>
+
+    <p><strong>Learn AWS first if:</strong> You want the most career-relevant certification. You plan to work at a company that might use any cloud (AWS is the default assumption at most). You want the most learning resources and community support available. The AWS Solutions Architect Associate certification is the most recognized cloud cert in the industry.</p>
+
+    <p><strong>Learn Azure first if:</strong> You work in a Microsoft-heavy environment (Active Directory, Windows Server, Microsoft 365). Your organization is already on Azure or planning to be. Azure AD (Entra ID) administration is already part of your job. The Azure Administrator (AZ-104) cert is highly valued in enterprise IT departments.</p>
+
+    <p><strong>Learn GCP first if:</strong> You're interested in Kubernetes and container orchestration specifically. You work in data engineering or data science and want to use BigQuery. You want the most forgiving free tier for personal projects without a 12-month expiration.</p>
+
+    <p>The good news: the concepts transfer. Once you understand networking, IAM (identity and access management), and storage on one cloud, picking up the others takes weeks rather than months. Learn one well before jumping to the next.</p>
+
+    <h2 id="for-homelabbers">A Note for Homelab Users</h2>
+
+    <p>If you're coming from a homelab background, cloud makes the most sense as a complement to your local setup rather than a replacement for it.</p>
+
+    <p>Practical uses where cloud beats a homelab:</p>
+
+    <ul>
+      <li><strong>Public-facing services.</strong> Hosting something that needs to be accessible from the internet without exposing your home IP address.</li>
+      <li><strong>Learning managed services.</strong> Trying out RDS (managed database), Elastic Kubernetes Service, or other services that you can't easily replicate at home.</li>
+      <li><strong>Burst compute.</strong> Spinning up 20 VMs for an afternoon to do a load test or batch job, then deleting them. Something you can't do with a single homelab node.</li>
+      <li><strong>Offsite backups.</strong> Using S3, Azure Blob, or GCS as a backup target for your homelab — far cheaper and more reliable than buying external drives.</li>
+    </ul>
+
+    <p>For offsite backups specifically, all three provide very cheap "cold" storage tiers. AWS Glacier, Azure Archive, and GCP Nearline/Coldline are all under $0.005/GB/month — storing 1TB of homelab backups costs about $5/month.</p>
+
+    <h2 id="bottom-line">The Bottom Line</h2>
+
+    <p>There's no universally "best" cloud. Each has real strengths:</p>
+
+    <ul>
+      <li><strong>AWS</strong> — best community, most services, best for career certifications, most flexible spot/savings plans</li>
+      <li><strong>Azure</strong> — best for Microsoft environments, best compliance certifications, free Kubernetes control plane, best for hybrid (on-premises + cloud)</li>
+      <li><strong>GCP</strong> — best Kubernetes, best always-free tier, most transparent pricing, best for data analytics and BigQuery</li>
+    </ul>
+
+    <p>If you're genuinely unsure where to start: pick AWS, create a free account, and spend a few weekends following the AWS Certified Solutions Architect study materials. You'll come out with foundational skills that transfer to any cloud environment and a certification that's recognized everywhere.</p>
+
+    <p>All three have free tiers generous enough to learn without spending money. Use them. Break things. Read the billing dashboard obsessively for the first few months. Cloud is powerful, but unexplained bills are a rite of passage almost everyone goes through at least once.</p>
+
+    <h3>Official pricing resources</h3>
+    <ul>
+      <li><a href="https://aws.amazon.com/pricing/" target="_blank" rel="noopener">AWS Pricing</a> · <a href="https://calculator.aws/pricing/2/home" target="_blank" rel="noopener">AWS Pricing Calculator</a></li>
+      <li><a href="https://azure.microsoft.com/en-us/pricing/" target="_blank" rel="noopener">Azure Pricing</a> · <a href="https://azure.microsoft.com/en-us/pricing/calculator/" target="_blank" rel="noopener">Azure Pricing Calculator</a></li>
+      <li><a href="https://cloud.google.com/pricing" target="_blank" rel="noopener">GCP Pricing</a> · <a href="https://cloud.google.com/products/calculator" target="_blank" rel="noopener">GCP Pricing Calculator</a></li>
+    </ul>
+
+    <div class="ad-placeholder">[ ad placement ]</div>
+  </div>
+</article>
+
+<div id="newsletter"></div>
+<div id="footer"></div>
+
+<script src="/js/components.js"></script>
+</body>
+</html>

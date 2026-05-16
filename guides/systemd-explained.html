@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Systemd Unit Files Explained: A Practical Guide (2026) — Lareware</title>
+  <meta name="description" content="A plain-English guide to systemd unit files for Linux sysadmins. Learn what systemd is, how to write service files, control services with systemctl, read logs with journalctl, and debug failures.">
+  <link rel="canonical" href="https://lareware.net/guides/systemd-explained.html">
+  <meta property="og:title" content="Systemd Unit Files Explained: A Practical Guide (2026)">
+  <meta property="og:description" content="A plain-English guide to systemd unit files — write services, manage dependencies, read logs, and debug failures.">
+  <meta property="og:type" content="article">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+<div id="nav"></div>
+
+<article>
+  <header class="article-header">
+    <div class="guide-cat">Linux</div>
+    <h1>Systemd Unit Files Explained: A Practical Guide</h1>
+    <div class="article-meta">
+      <time datetime="2026-05-15">May 15, 2026</time>
+      <span>· 15 min read</span>
+    </div>
+  </header>
+
+  <div class="article-body">
+
+    <div class="toc">
+      <div class="toc-label">// contents</div>
+      <ul>
+        <li><a href="#what-is-systemd">What Is systemd?</a></li>
+        <li><a href="#unit-types">Unit Types</a></li>
+        <li><a href="#where-files-live">Where Unit Files Live</a></li>
+        <li><a href="#anatomy">Anatomy of a Service Unit File</a></li>
+        <li><a href="#write-your-own">Writing Your First Unit File</a></li>
+        <li><a href="#systemctl">Managing Services with systemctl</a></li>
+        <li><a href="#journalctl">Reading Logs with journalctl</a></li>
+        <li><a href="#dependencies">Dependencies and Ordering</a></li>
+        <li><a href="#security">Security Hardening</a></li>
+        <li><a href="#timers">Systemd Timers: Replacing Cron</a></li>
+        <li><a href="#debugging">Debugging Failed Services</a></li>
+        <li><a href="#common-patterns">Common Real-World Patterns</a></li>
+      </ul>
+    </div>
+
+    <div class="ad-placeholder">[ ad placement ]</div>
+
+    <p>If you administer Linux servers, you interact with systemd every day whether you realize it or not. Every time you run <code>systemctl restart nginx</code> or check <code>journalctl -f</code>, that's systemd. It's the init system and service manager on virtually every mainstream Linux distribution — Ubuntu, Debian, Fedora, CentOS Stream, RHEL, Arch, and more.</p>
+
+    <p>Most sysadmins learn just enough systemd to start and stop services. This guide goes further: you'll understand what's actually happening when you run those commands, how to write your own unit files from scratch, how to read logs intelligently, and how to debug services when they fail to start.</p>
+
+    <h2 id="what-is-systemd">What Is systemd?</h2>
+
+    <p>systemd is the first process that runs when Linux boots. It gets assigned PID 1 — Process ID 1, the root of every other process on the system. From there, it's responsible for starting every service, mounting every filesystem, and managing the system for its entire uptime.</p>
+
+    <p>Before systemd, most Linux distributions used SysVinit — a collection of shell scripts in <code>/etc/init.d/</code>. Those scripts had to handle start, stop, restart, and status logic manually. Each one was different. Dependency declaration was clunky. Services had to start one at a time in sequence. If you've ever seen the old red/green boot messages scrolling by on a Linux system, that was SysVinit.</p>
+
+    <p>systemd replaced that model with something declarative. Instead of writing a shell script that describes <em>how</em> to start a service, you write a unit file that declares <em>what</em> the service is — and systemd figures out the rest. Dependencies are resolved automatically, independent services start in parallel, and failures are handled consistently.</p>
+
+    <p>The practical results: faster boot times, standardized logging, consistent service management commands across every distribution, and automatic service restart on failure.</p>
+
+    <h2 id="unit-types">Unit Types</h2>
+
+    <p>In systemd, everything it manages is called a "unit." Units are defined in configuration files called unit files, and they come in several types identified by their file extension:</p>
+
+    <table>
+      <thead>
+        <tr><th>Extension</th><th>What It Manages</th><th>Example</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>.service</code></td><td>A process or daemon</td><td><code>nginx.service</code>, <code>sshd.service</code></td></tr>
+        <tr><td><code>.timer</code></td><td>A scheduled task (like cron)</td><td><code>backup.timer</code></td></tr>
+        <tr><td><code>.socket</code></td><td>A network or IPC socket</td><td><code>ssh.socket</code></td></tr>
+        <tr><td><code>.mount</code></td><td>A filesystem mount point</td><td><code>mnt-data.mount</code></td></tr>
+        <tr><td><code>.target</code></td><td>A group of units (like a runlevel)</td><td><code>multi-user.target</code></td></tr>
+        <tr><td><code>.path</code></td><td>File/directory monitoring</td><td><code>config-watch.path</code></td></tr>
+        <tr><td><code>.slice</code></td><td>Resource limit groups</td><td><code>user.slice</code></td></tr>
+      </tbody>
+    </table>
+
+    <p>For most sysadmin work, you'll deal primarily with <code>.service</code> and <code>.timer</code> units. The others exist and are useful in specific situations, but you won't need them on day one.</p>
+
+    <h2 id="where-files-live">Where Unit Files Live</h2>
+
+    <p>systemd looks for unit files in several locations, with a priority order:</p>
+
+    <pre><code>/etc/systemd/system/      # Your custom files and overrides (highest priority)
+/run/systemd/system/      # Runtime units (generated, temporary)
+/lib/systemd/system/      # Package-installed units (lowest priority)
+/usr/lib/systemd/system/  # Same as above on some distributions</code></pre>
+
+    <p>The most important thing to understand here: <strong>put your custom files in <code>/etc/systemd/system/</code></strong>. Files there take precedence over anything in <code>/lib/systemd/system/</code> and — critically — they won't be overwritten when you update packages.</p>
+
+    <p>When you install a package like nginx, its unit file goes to <code>/lib/systemd/system/nginx.service</code>. If you want to customize how nginx starts, you don't edit that file directly — you create an override in <code>/etc/systemd/system/</code> instead. This is the right way to do it and we'll cover the technique below.</p>
+
+    <h2 id="anatomy">Anatomy of a Service Unit File</h2>
+
+    <p>Unit files use a simple INI-style format — sections marked with square brackets, directives as key=value pairs. A typical service unit has three sections:</p>
+
+    <pre><code>[Unit]
+Description=My Application
+Documentation=https://example.com/docs
+After=network.target
+
+[Service]
+Type=simple
+User=myapp
+WorkingDirectory=/opt/myapp
+ExecStart=/opt/myapp/bin/myapp --config /etc/myapp/config.yaml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+    <p>Let's go through each section:</p>
+
+    <h3>[Unit] — What this unit is</h3>
+
+    <p><code>Description</code> is a human-readable name that shows up in <code>systemctl status</code> output. Make it descriptive.</p>
+
+    <p><code>After</code> tells systemd to start this unit only after the specified units have started. <code>network.target</code> is the most common — it means "wait until networking is up." This is an ordering directive, not a dependency — if <code>network.target</code> fails, this service still tries to start.</p>
+
+    <p><code>Documentation</code> is optional but good practice. It accepts URLs and man page references.</p>
+
+    <h3>[Service] — How to run it</h3>
+
+    <p><code>Type</code> tells systemd how the process behaves when it starts. The most important options:</p>
+
+    <ul>
+      <li><code>simple</code> — The process started by ExecStart is the main service process. systemd considers it started immediately. This is the default and right for most modern applications.</li>
+      <li><code>forking</code> — The process forks a child and exits. systemd waits for the fork. This is legacy behavior from old-style daemons. Use it when you have to, not by default.</li>
+      <li><code>oneshot</code> — The process runs to completion and exits. systemd waits for it to finish before considering the unit active. Good for scripts and initialization tasks.</li>
+      <li><code>notify</code> — Like simple, but the service signals systemd when it's actually ready using the <code>sd_notify()</code> API. Gives more accurate status tracking. Some packages like nginx and PostgreSQL support this.</li>
+    </ul>
+
+    <p><strong>When in doubt, use <code>simple</code>.</strong></p>
+
+    <p><code>User</code> and <code>Group</code> control which account the service runs as. Always run services as a dedicated non-root user when possible. This limits the damage if the service is compromised.</p>
+
+    <p><code>WorkingDirectory</code> sets the current directory for the process. Use this instead of relying on relative paths in your application.</p>
+
+    <p><code>ExecStart</code> is the command that starts your service. Always use absolute paths — systemd doesn't use your shell's PATH. <code>/opt/myapp/bin/myapp</code>, not <code>myapp</code>.</p>
+
+    <p><code>Restart</code> controls when systemd restarts the service automatically:</p>
+
+    <ul>
+      <li><code>no</code> — never restart (the default if omitted)</li>
+      <li><code>on-failure</code> — restart if the process exits with a non-zero code or is killed by a signal</li>
+      <li><code>always</code> — always restart, even on clean exit</li>
+      <li><code>on-abnormal</code> — restart on signals, watchdog timeout, or non-zero exit (but not clean exit)</li>
+    </ul>
+
+    <p><code>on-failure</code> is usually what you want for a service you want to keep running. <code>RestartSec=5</code> adds a 5-second delay before restarting, which prevents rapid restart loops from hammering the system.</p>
+
+    <h3>[Install] — How to enable it</h3>
+
+    <p><code>WantedBy</code> controls which target this service gets linked to when you run <code>systemctl enable</code>. <code>multi-user.target</code> is the right choice for almost every server service — it's the equivalent of the old runlevel 3 (multi-user, non-graphical).</p>
+
+    <blockquote>The [Install] section only matters when you run <code>systemctl enable</code>. It doesn't affect whether the service starts now — it only controls whether it starts at boot. A service with no [Install] section can still be started manually; it just won't start automatically.</blockquote>
+
+    <h2 id="write-your-own">Writing Your First Unit File</h2>
+
+    <p>Let's walk through a real example: turning a Python web application into a proper systemd service.</p>
+
+    <p>Assume you have a Flask application at <code>/opt/myapp/app.py</code> that you normally run with Gunicorn. Here's the process:</p>
+
+    <p><strong>Step 1: Create a dedicated user for the service</strong></p>
+
+    <pre><code>sudo useradd --system --shell /sbin/nologin --home-dir /opt/myapp myapp</code></pre>
+
+    <p>The <code>--system</code> flag creates a system account (lower UID range, no password). <code>--shell /sbin/nologin</code> prevents anyone from logging in as this user. This is standard practice for service accounts.</p>
+
+    <p><strong>Step 2: Write the unit file</strong></p>
+
+    <pre><code>sudo nano /etc/systemd/system/myapp.service</code></pre>
+
+    <pre><code>[Unit]
+Description=My Flask Application
+Documentation=https://github.com/me/myapp
+After=network.target
+
+[Service]
+Type=simple
+User=myapp
+Group=myapp
+WorkingDirectory=/opt/myapp
+EnvironmentFile=/etc/myapp/environment
+ExecStart=/opt/myapp/venv/bin/gunicorn -w 4 -b 127.0.0.1:8000 app:app
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+    <p>A few things worth noting here:</p>
+
+    <p><code>EnvironmentFile</code> points to a file containing environment variables (like <code>DATABASE_URL=...</code> or <code>SECRET_KEY=...</code>). This keeps sensitive config out of the unit file itself. The file should be owned by root, readable only by root and the service user.</p>
+
+    <p><code>ExecReload</code> lets you send a HUP signal to reload config without restarting the process. Not all applications support this, but it's worth including when they do.</p>
+
+    <p><code>StandardOutput=journal</code> and <code>StandardError=journal</code> send both stdout and stderr to the systemd journal. This means everything the application prints goes to <code>journalctl</code>. This is actually the default, but being explicit is good documentation.</p>
+
+    <p><strong>Step 3: Tell systemd the file exists</strong></p>
+
+    <pre><code>sudo systemctl daemon-reload</code></pre>
+
+    <p>This step is critical and frequently forgotten. Any time you create or modify a unit file, you must run <code>daemon-reload</code> before trying to start or enable the service. Without it, systemd is still using its cached version of your unit files.</p>
+
+    <p><strong>Step 4: Start and enable it</strong></p>
+
+    <pre><code>sudo systemctl start myapp
+sudo systemctl enable myapp</code></pre>
+
+    <p>Or combine both in one command:</p>
+
+    <pre><code>sudo systemctl enable --now myapp</code></pre>
+
+    <p><strong>Step 5: Verify it's running</strong></p>
+
+    <pre><code>sudo systemctl status myapp</code></pre>
+
+    <h2 id="systemctl">Managing Services with systemctl</h2>
+
+    <p>Here are the systemctl commands you'll use most often:</p>
+
+    <pre><code># Start / stop / restart
+systemctl start nginx
+systemctl stop nginx
+systemctl restart nginx
+
+# Reload config without full restart (if supported)
+systemctl reload nginx
+
+# Enable at boot / disable
+systemctl enable nginx
+systemctl disable nginx
+
+# Enable AND start in one command
+systemctl enable --now nginx
+
+# Check status
+systemctl status nginx
+
+# List all running services
+systemctl list-units --type=service
+
+# List all services including stopped ones
+systemctl list-units --type=service --all
+
+# Show only failed services
+systemctl list-units --type=service --state=failed
+
+# Check if a service is running
+systemctl is-active nginx
+
+# Check if enabled at boot
+systemctl is-enabled nginx</code></pre>
+
+    <p>An important distinction: <code>enable</code> and <code>start</code> are separate operations. <code>enable</code> creates symlinks so the service starts at boot. <code>start</code> starts it right now. Running <code>enable</code> without <code>start</code> means the service will start next boot but not immediately. Running <code>start</code> without <code>enable</code> starts it now but it won't survive a reboot. Usually you want both.</p>
+
+    <h2 id="journalctl">Reading Logs with journalctl</h2>
+
+    <p>journald is systemd's logging system. It captures everything services write to stdout and stderr, plus kernel messages, boot logs, and more — all in a structured, indexed journal. The tool for reading it is <code>journalctl</code>.</p>
+
+    <pre><code># Follow all logs in real time (like tail -f /var/log/syslog)
+journalctl -f
+
+# Logs for a specific service
+journalctl -u nginx
+
+# Follow a specific service in real time
+journalctl -u nginx -f
+
+# Last 50 lines for a service
+journalctl -u nginx -n 50
+
+# Logs since the last boot
+journalctl -b
+
+# Logs from the previous boot (useful when something crashed on reboot)
+journalctl -b -1
+
+# Logs since a specific time
+journalctl --since "2026-05-15 10:00:00"
+
+# Last hour
+journalctl --since "1 hour ago"
+
+# Only errors and worse
+journalctl -p err
+
+# Only for a specific service, last hour
+journalctl -u myapp --since "1 hour ago"</code></pre>
+
+    <p>One thing that catches people: by default <code>journalctl</code> opens in a pager (like <code>less</code>). Press <code>G</code> to jump to the end, or use <code>-f</code> to follow in real time. Add <code>--no-pager</code> to pipe the output elsewhere.</p>
+
+    <h2 id="dependencies">Dependencies and Ordering</h2>
+
+    <p>systemd gives you several directives to control how units relate to each other. This is one of the things that makes it significantly more powerful than old init scripts.</p>
+
+    <p><strong>Ordering directives</strong> (when to start, not whether to start):</p>
+
+    <ul>
+      <li><code>After=</code> — start after the listed units. Most common. <code>After=network.target</code> means "wait until networking is up."</li>
+      <li><code>Before=</code> — start before the listed units. Less common, useful when your service needs to be running before something else starts.</li>
+    </ul>
+
+    <p><strong>Dependency directives</strong> (whether to start, not just when):</p>
+
+    <ul>
+      <li><code>Wants=</code> — start the listed units alongside this one, but don't fail if they don't start. The most common and most forgiving dependency type. Use this for most cases.</li>
+      <li><code>Requires=</code> — like Wants, but if the required unit fails or stops, this unit also stops. Strict dependency. Use it when your service genuinely cannot function without the other.</li>
+      <li><code>BindsTo=</code> — even stricter than Requires. If the other unit stops for any reason, this unit immediately stops too.</li>
+    </ul>
+
+    <p>A common pattern: a web application that needs a database to be running first.</p>
+
+    <pre><code>[Unit]
+Description=My Web Application
+After=network.target postgresql.service
+Requires=postgresql.service</code></pre>
+
+    <p>This means: start after networking and PostgreSQL are up, and stop if PostgreSQL stops.</p>
+
+    <p>Note that <code>After</code> and <code>Requires</code> serve different purposes and are often combined. <code>Requires=postgresql.service</code> alone doesn't guarantee PostgreSQL starts first — it just makes this service dependent on it. You need <code>After=postgresql.service</code> to also enforce the ordering.</p>
+
+    <h2 id="security">Security Hardening</h2>
+
+    <p>systemd has a surprisingly rich set of security directives you can add to unit files to limit what a service can do. These are worth knowing even for homelab use — they significantly reduce the impact of a compromised service.</p>
+
+    <pre><code>[Service]
+# Run as a non-root user
+User=myapp
+Group=myapp
+
+# Make the filesystem mostly read-only
+ProtectSystem=strict
+# But allow writing to these directories
+ReadWritePaths=/var/lib/myapp /var/log/myapp
+
+# Prevent the service from seeing /home
+ProtectHome=true
+
+# Give the service its own private /tmp
+PrivateTmp=true
+
+# Prevent privilege escalation
+NoNewPrivileges=true
+
+# Restrict which system calls the service can make
+SystemCallFilter=@system-service</code></pre>
+
+    <p>You don't need to use all of these, but <code>User=</code>, <code>NoNewPrivileges=true</code>, and <code>PrivateTmp=true</code> are low-effort and high-value. They cost nothing in terms of functionality for most services and significantly reduce the blast radius of a vulnerability.</p>
+
+    <p>To check how hardened a service already is, run:</p>
+
+    <pre><code>systemd-analyze security nginx.service</code></pre>
+
+    <p>This gives you a security score and lists which protections are enabled and missing. It won't tell you what's appropriate for every service, but it's a useful starting point.</p>
+
+    <h2 id="timers">Systemd Timers: Replacing Cron</h2>
+
+    <p>systemd timers are an alternative to cron for scheduling recurring tasks. They're not necessarily better than cron for simple cases, but they have a few advantages: they log to the journal (so you can see output with <code>journalctl</code>), they integrate with systemd's dependency system, and they can be paused, started, and inspected with the same tools as services.</p>
+
+    <p>A timer requires two files: a <code>.service</code> file for the task and a <code>.timer</code> file for the schedule. Example — a daily backup script:</p>
+
+    <pre><code># /etc/systemd/system/backup.service
+[Unit]
+Description=Daily Backup
+
+[Service]
+Type=oneshot
+User=backup
+ExecStart=/opt/backup/run-backup.sh</code></pre>
+
+    <pre><code># /etc/systemd/system/backup.timer
+[Unit]
+Description=Run backup daily at 2 AM
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target</code></pre>
+
+    <p><code>OnCalendar</code> uses a calendar expression format. Common examples:</p>
+
+    <pre><code>OnCalendar=daily           # Every day at midnight
+OnCalendar=weekly          # Every Monday at midnight
+OnCalendar=*-*-* 02:00:00  # Every day at 2 AM
+OnCalendar=Mon *-*-* 09:00 # Every Monday at 9 AM
+OnCalendar=*:0/15          # Every 15 minutes</code></pre>
+
+    <p><code>Persistent=true</code> means if the system was off when the timer was supposed to fire, it will run the job immediately the next time the system boots. Useful for backup scripts that should never be skipped.</p>
+
+    <p>Enable and start the timer (not the service — the timer manages the service):</p>
+
+    <pre><code>sudo systemctl enable --now backup.timer
+
+# List all active timers and when they next fire
+systemctl list-timers</code></pre>
+
+    <h2 id="debugging">Debugging Failed Services</h2>
+
+    <p>Services fail. Here's the diagnostic sequence that resolves most issues:</p>
+
+    <p><strong>Step 1: Check the status</strong></p>
+
+    <pre><code>systemctl status myapp</code></pre>
+
+    <p>The output tells you the current state, the exit code if it failed, and the last few log lines. Look for the <code>Active:</code> line — it will say <code>failed</code> with a reason, or <code>activating</code> if it's stuck starting up.</p>
+
+    <p><strong>Step 2: Read the full logs</strong></p>
+
+    <pre><code>journalctl -u myapp -n 100 --no-pager</code></pre>
+
+    <p>This shows the last 100 lines of logs for the service. The actual error is almost always in here.</p>
+
+    <p><strong>Step 3: Interpret the exit code</strong></p>
+
+    <p>systemd reports exit codes as <code>status=N/DESCRIPTION</code>. Common ones:</p>
+
+    <ul>
+      <li><code>203/EXEC</code> — systemd couldn't execute the binary in <code>ExecStart</code>. Usually means the path is wrong, the file isn't executable, or the file doesn't exist.</li>
+      <li><code>217/USER</code> — the <code>User=</code> specified in the unit file doesn't exist. Create the user with <code>useradd --system myapp</code>.</li>
+      <li><code>1/FAILURE</code> — the program exited with code 1. This is the application itself reporting an error — check the logs for what the application said.</li>
+      <li><code>143</code> or <code>137</code> — the process was killed by a signal (SIGTERM or SIGKILL respectively). Could be systemd stopping it, OOM killer, or something else.</li>
+    </ul>
+
+    <p><strong>Step 4: Test the command manually</strong></p>
+
+    <p>Copy the <code>ExecStart</code> command and run it yourself as the service user:</p>
+
+    <pre><code>sudo -u myapp /opt/myapp/bin/myapp --config /etc/myapp/config.yaml</code></pre>
+
+    <p>If it fails in your terminal, you'll see the error directly. If it works in your terminal but not as a service, the issue is usually a missing environment variable, a permission problem, or a working directory issue.</p>
+
+    <p><strong>Step 5: Check boot performance</strong></p>
+
+    <p>If your system is slow to boot, these tools help identify which services are taking too long:</p>
+
+    <pre><code># Overall boot time breakdown
+systemd-analyze
+
+# Show which units took longest
+systemd-analyze blame
+
+# Show the critical path (what's actually holding up boot)
+systemd-analyze critical-chain</code></pre>
+
+    <h2 id="common-patterns">Common Real-World Patterns</h2>
+
+    <h3>Override a package's unit file without editing it directly</h3>
+
+    <p>The right way to customize a package-provided unit file is with a "drop-in" override, not by editing the original:</p>
+
+    <pre><code>sudo systemctl edit nginx</code></pre>
+
+    <p>This opens an editor and creates a file at <code>/etc/systemd/system/nginx.service.d/override.conf</code>. Add only the directives you want to change:</p>
+
+    <pre><code>[Service]
+LimitNOFILE=65535</code></pre>
+
+    <p>When nginx's package updates and overwrites <code>/lib/systemd/system/nginx.service</code>, your override survives untouched because it's a separate file.</p>
+
+    <h3>Restart a service if it stays down too long</h3>
+
+    <pre><code>[Service]
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=3</code></pre>
+
+    <p><code>StartLimitBurst=3</code> and <code>StartLimitIntervalSec=60</code> together mean: if the service fails to start 3 times within 60 seconds, stop trying. This prevents a crash-looping service from consuming all your resources. Without this, a service set to <code>Restart=on-failure</code> with a fast failure will restart hundreds of times per minute.</p>
+
+    <h3>Run a service after a network connection is actually established</h3>
+
+    <p>There's a subtle but important distinction on servers:</p>
+
+    <ul>
+      <li><code>network.target</code> — networking services have started, but may not have connectivity yet</li>
+      <li><code>network-online.target</code> — at least one network interface has an IP and connectivity</li>
+    </ul>
+
+    <p>If your service needs actual internet or LAN access to start (not just for the network stack to be initialized), use:</p>
+
+    <pre><code>[Unit]
+After=network-online.target
+Wants=network-online.target</code></pre>
+
+    <h3>Pass environment variables to a service</h3>
+
+    <p>Two ways to do this. Inline in the unit file:</p>
+
+    <pre><code>[Service]
+Environment="NODE_ENV=production"
+Environment="PORT=3000"</code></pre>
+
+    <p>Or from a file (better for secrets, since the unit file itself is world-readable):</p>
+
+    <pre><code>[Service]
+EnvironmentFile=/etc/myapp/environment</code></pre>
+
+    <p>The environment file format is simple key=value pairs, one per line. Set its permissions to be readable only by root and the service user:</p>
+
+    <pre><code>sudo chmod 640 /etc/myapp/environment
+sudo chown root:myapp /etc/myapp/environment</code></pre>
+
+    <p>systemd is one of those tools that rewards time invested in understanding it. Once you know the structure of unit files and the systemctl/journalctl workflow, you can manage any service on any systemd-based Linux system confidently — regardless of whether it's a homelab VM, a cloud VPS, or a production server.</p>
+
+    <div class="ad-placeholder">[ ad placement ]</div>
+  </div>
+</article>
+
+<div id="newsletter"></div>
+<div id="footer"></div>
+
+<script src="/js/components.js"></script>
+</body>
+</html>
