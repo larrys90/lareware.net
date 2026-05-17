@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sysadmin Command Cheat Sheet — Lareware</title>
+  <meta name="description" content="Quick-reference cheat sheet of essential sysadmin commands for Linux, Windows, Active Directory, Exchange, networking, and more. Click any command to copy it instantly.">
+  <link rel="canonical" href="https://lareware.net/tools/cheat-sheet.html">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3852731075404476" crossorigin="anonymous"></script>
+  <style>
+    /* ── Layout ── */
+    .cs-wrap { max-width: 1100px; margin: 0 auto; }
+
+    /* ── Search + filter bar ── */
+    .cs-bar {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .cs-search {
+      flex: 1;
+      min-width: 220px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem 0.75rem 2.6rem;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.2s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237a8099' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: 0.85rem center;
+    }
+    .cs-search:focus { border-color: var(--accent); }
+    .cs-search::placeholder { color: var(--text-muted); }
+
+    /* ── Category filter pills ── */
+    .cs-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 2rem;
+    }
+    .cs-filter {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.3rem 0.85rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.18s;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .cs-filter:hover { border-color: var(--accent); color: var(--text); }
+    .cs-filter.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+    .cs-filter[data-cat="windows"].active { border-color: var(--accent2); color: var(--accent2); background: var(--accent2-dim); }
+    .cs-filter[data-cat="activedirectory"].active { border-color: #a78bfa; color: #a78bfa; background: rgba(167,139,250,0.12); }
+    .cs-filter[data-cat="exchange"].active { border-color: var(--orange); color: var(--orange); background: var(--orange-dim); }
+    .cs-filter[data-cat="networking"].active { border-color: #2dd4bf; color: #2dd4bf; background: rgba(45,212,191,0.12); }
+    .cs-filter[data-cat="docker"].active { border-color: #60a5fa; color: #60a5fa; background: rgba(96,165,250,0.12); }
+    .cs-filter[data-cat="linux"].active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    /* ── Stats bar ── */
+    .cs-stats {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 1.25rem;
+    }
+    .cs-stats span { color: var(--accent); font-weight: 600; }
+
+    /* ── Section ── */
+    .cs-section { margin-bottom: 2.5rem; }
+    .cs-section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.85rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .cs-section-icon {
+      width: 30px; height: 30px;
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .icon-linux   { background: var(--accent-dim); color: var(--accent); }
+    .icon-windows { background: var(--accent2-dim); color: var(--accent2); }
+    .icon-ad      { background: rgba(167,139,250,0.12); color: #a78bfa; }
+    .icon-exchange{ background: var(--orange-dim); color: var(--orange); }
+    .icon-network { background: rgba(45,212,191,0.12); color: #2dd4bf; }
+    .icon-docker  { background: rgba(96,165,250,0.12); color: #60a5fa; }
+    .icon-git     { background: rgba(251,146,60,0.12); color: #fb923c; }
+    .icon-vim     { background: rgba(34,197,94,0.12); color: #22c55e; }
+    .icon-systemd { background: rgba(236,72,153,0.12); color: #f472b6; }
+    .icon-firewall{ background: rgba(239,68,68,0.12); color: var(--red); }
+
+    .cs-section-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .cs-section-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    /* ── Command grid ── */
+    .cs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+      gap: 0.4rem;
+    }
+
+    /* ── Command row ── */
+    .cs-cmd {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 0.55rem 0.85rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.5rem;
+      align-items: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .cs-cmd:hover {
+      border-color: var(--accent);
+      background: var(--bg-card-hover);
+    }
+    .cs-cmd.copied {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .cs-cmd-left { min-width: 0; }
+    .cs-cmd-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--terminal-green);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 0.2rem;
+    }
+    .cs-cmd.copied .cs-cmd-code { color: var(--accent); }
+    .cs-cmd-desc {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cs-cmd-copy {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      transition: color 0.15s;
+      user-select: none;
+    }
+    .cs-cmd:hover .cs-cmd-copy { color: var(--accent); }
+    .cs-cmd.copied .cs-cmd-copy { color: var(--accent); }
+
+    /* ── No results ── */
+    .cs-empty {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      display: none;
+    }
+    .cs-empty.visible { display: block; }
+
+    /* ── Highlight match ── */
+    .hl { color: var(--accent); background: var(--accent-dim); border-radius: 2px; padding: 0 1px; }
+
+    @media (max-width: 768px) {
+      .cs-grid { grid-template-columns: 1fr; }
+      .cs-bar { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<header class="article-header">
+  <div class="guide-cat">Tool</div>
+  <h1>Sysadmin Command Cheat Sheet</h1>
+  <p style="color:var(--text-muted);margin-top:0.5rem;">Essential one-liners for Linux, Windows, Active Directory, Exchange, networking, Docker, and more. Click any command to copy it instantly.</p>
+</header>
+
+<section class="section" style="padding-top:0;">
+  <div class="cs-wrap">
+
+    <div class="cs-bar">
+      <input type="text" class="cs-search" id="cs-search" placeholder="Search commands or descriptions…" autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="cs-filters" id="cs-filters">
+      <button class="cs-filter active" data-cat="all">All</button>
+      <button class="cs-filter" data-cat="linux">Linux</button>
+      <button class="cs-filter" data-cat="systemd">Systemd</button>
+      <button class="cs-filter" data-cat="windows">Windows</button>
+      <button class="cs-filter" data-cat="activedirectory">Active Directory</button>
+      <button class="cs-filter" data-cat="exchange">Exchange</button>
+      <button class="cs-filter" data-cat="networking">Networking</button>
+      <button class="cs-filter" data-cat="docker">Docker</button>
+      <button class="cs-filter" data-cat="firewall">Firewall</button>
+      <button class="cs-filter" data-cat="git">Git</button>
+      <button class="cs-filter" data-cat="vim">Vim</button>
+    </div>
+
+    <div class="cs-stats" id="cs-stats"></div>
+
+    <div id="cs-sections"></div>
+    <div class="cs-empty" id="cs-empty">No commands match your search.</div>
+
+  </div>
+</section>
+
+<div class="article-body">
+  <div class="ad-placeholder">[ ad placement ]</div>
+  <p>All commands run as-is on their respective platforms. Commands requiring elevated privileges are marked with <code>sudo</code> (Linux) or assume an elevated PowerShell session (Windows/AD/Exchange). Always test in a non-production environment first.</p>
+  <div class="ad-placeholder">[ ad placement ]</div>
+</div>
+
+<div id="newsletter"></div>
+<div id="footer"></div>
+
+<script src="/js/components.js"></script>
+<script>
+// ─────────────────────────────────────────
+// COMMAND DATA
+// ─────────────────────────────────────────
+const SECTIONS = [
+  {
+    id: 'linux',
+    title: 'Linux — File & System',
+    icon: 'LX',
+    iconClass: 'icon-linux',
+    cat: 'linux',
+    cmds: [
+      { cmd: 'df -h', desc: 'Show disk usage in human-readable format' },
+      { cmd: 'du -sh /*', desc: 'Show size of each item in root directory' },
+      { cmd: 'du -sh * | sort -rh | head -20', desc: 'Top 20 largest files/folders in current dir' },
+      { cmd: 'lsblk -f', desc: 'List block devices with filesystem info' },
+      { cmd: 'mount | column -t', desc: 'Show all mounts in readable columns' },
+      { cmd: 'free -h', desc: 'Show RAM and swap usage' },
+      { cmd: 'uptime', desc: 'Show uptime and load averages' },
+      { cmd: 'uname -r', desc: 'Show running kernel version' },
+      { cmd: 'lscpu', desc: 'Show CPU architecture and core info' },
+      { cmd: 'lspci', desc: 'List all PCI devices' },
+      { cmd: 'lsusb', desc: 'List USB devices' },
+      { cmd: 'ls -lah', desc: 'List files with sizes, hidden files, human readable' },
+      { cmd: 'find / -name "*.conf" -type f 2>/dev/null', desc: 'Find all .conf files on the system' },
+      { cmd: 'find /var/log -mtime -1 -type f', desc: 'Find log files modified in the last 24 hours' },
+      { cmd: 'tail -f /var/log/syslog', desc: 'Follow syslog in real time' },
+      { cmd: 'grep -r "error" /var/log/ --include="*.log"', desc: 'Search for "error" across all log files' },
+      { cmd: 'cat /etc/os-release', desc: 'Show Linux distribution info' },
+      { cmd: 'last -n 20', desc: 'Show last 20 logins' },
+      { cmd: 'who', desc: 'Show currently logged-in users' },
+      { cmd: 'w', desc: 'Show who is logged in and what they are doing' },
+      { cmd: 'history | grep ssh', desc: 'Search command history for ssh commands' },
+      { cmd: 'chmod 600 ~/.ssh/id_rsa', desc: 'Set correct permissions on SSH private key' },
+      { cmd: 'chown -R user:group /path', desc: 'Recursively change ownership of directory' },
+      { cmd: 'tar -czvf archive.tar.gz /path', desc: 'Create compressed tar archive' },
+      { cmd: 'tar -xzvf archive.tar.gz', desc: 'Extract compressed tar archive' },
+      { cmd: 'rsync -avz /src/ user@host:/dst/', desc: 'Sync files to remote host with compression' },
+      { cmd: 'scp file.txt user@host:/path/', desc: 'Copy file to remote host via SSH' },
+      { cmd: 'crontab -e', desc: 'Edit current user crontab' },
+      { cmd: 'crontab -l', desc: 'List current user crontab' },
+      { cmd: 'cat /proc/meminfo', desc: 'Detailed memory information' },
+      { cmd: 'cat /proc/cpuinfo', desc: 'Detailed CPU information' },
+      { cmd: 'dmesg | tail -50', desc: 'Show last 50 kernel messages' },
+      { cmd: 'timedatectl', desc: 'Show and manage system time/timezone' },
+      { cmd: 'timedatectl set-timezone America/New_York', desc: 'Set system timezone' },
+      { cmd: 'hostnamectl set-hostname newhostname', desc: 'Change system hostname' },
+    ]
+  },
+  {
+    id: 'linux-proc',
+    title: 'Linux — Processes & Performance',
+    icon: 'PS',
+    iconClass: 'icon-linux',
+    cat: 'linux',
+    cmds: [
+      { cmd: 'ps aux | grep nginx', desc: 'Find all nginx processes' },
+      { cmd: 'ps aux --sort=-%cpu | head -10', desc: 'Top 10 processes by CPU usage' },
+      { cmd: 'ps aux --sort=-%mem | head -10', desc: 'Top 10 processes by memory usage' },
+      { cmd: 'kill -9 PID', desc: 'Force kill a process by PID' },
+      { cmd: 'pkill -f processname', desc: 'Kill all processes matching name' },
+      { cmd: 'top -bn1 | head -20', desc: 'One-shot top output (non-interactive)' },
+      { cmd: 'htop', desc: 'Interactive process viewer (if installed)' },
+      { cmd: 'iotop -o', desc: 'Show processes with active disk I/O' },
+      { cmd: 'vmstat 1 5', desc: 'Show system performance every 1s, 5 times' },
+      { cmd: 'iostat -x 1', desc: 'Show extended disk I/O stats every second' },
+      { cmd: 'lsof -p PID', desc: 'List all files opened by a process' },
+      { cmd: 'lsof -i :80', desc: 'Show what is using port 80' },
+      { cmd: 'ss -tlnp', desc: 'Show all TCP listening ports with processes' },
+      { cmd: 'ss -ulnp', desc: 'Show all UDP listening ports with processes' },
+      { cmd: 'netstat -tulnp', desc: 'List all listening ports with PIDs' },
+      { cmd: 'strace -p PID', desc: 'Trace system calls of a running process' },
+      { cmd: 'nohup command &', desc: 'Run command immune to hangups, in background' },
+      { cmd: 'nice -n 10 command', desc: 'Run command with lower priority (nicer)' },
+    ]
+  },
+  {
+    id: 'linux-users',
+    title: 'Linux — Users & Permissions',
+    icon: 'US',
+    iconClass: 'icon-linux',
+    cat: 'linux',
+    cmds: [
+      { cmd: 'useradd -m -s /bin/bash username', desc: 'Create user with home dir and bash shell' },
+      { cmd: 'useradd --system --shell /sbin/nologin svcuser', desc: 'Create system/service account (no login)' },
+      { cmd: 'passwd username', desc: 'Set password for a user' },
+      { cmd: 'usermod -aG sudo username', desc: 'Add user to sudo group (Debian/Ubuntu)' },
+      { cmd: 'usermod -aG wheel username', desc: 'Add user to wheel group (RHEL/CentOS)' },
+      { cmd: 'usermod -L username', desc: 'Lock a user account' },
+      { cmd: 'usermod -U username', desc: 'Unlock a user account' },
+      { cmd: 'userdel -r username', desc: 'Delete user and their home directory' },
+      { cmd: 'id username', desc: 'Show UID, GID, and group membership for user' },
+      { cmd: 'groups username', desc: 'List groups a user belongs to' },
+      { cmd: 'cat /etc/passwd | awk -F: \'$3 >= 1000\'', desc: 'List all non-system user accounts' },
+      { cmd: 'sudo -l -U username', desc: 'Show sudo privileges for a user' },
+      { cmd: 'visudo', desc: 'Safely edit the sudoers file' },
+      { cmd: 'chmod 755 /path', desc: 'Set rwxr-xr-x permissions' },
+      { cmd: 'chmod 644 file', desc: 'Set rw-r--r-- permissions' },
+      { cmd: 'find /path -perm -4000', desc: 'Find all SUID files (security audit)' },
+      { cmd: 'getfacl file', desc: 'Show Access Control List for a file' },
+      { cmd: 'setfacl -m u:user:rwx file', desc: 'Grant user rwx access via ACL' },
+    ]
+  },
+  {
+    id: 'linux-packages',
+    title: 'Linux — Package Management',
+    icon: 'PK',
+    iconClass: 'icon-linux',
+    cat: 'linux',
+    cmds: [
+      { cmd: 'apt update && apt upgrade -y', desc: 'Update package list and upgrade all packages (Debian/Ubuntu)' },
+      { cmd: 'apt install -y package', desc: 'Install a package' },
+      { cmd: 'apt remove package', desc: 'Remove a package (keep config)' },
+      { cmd: 'apt purge package', desc: 'Remove a package and its config files' },
+      { cmd: 'apt autoremove', desc: 'Remove unused dependency packages' },
+      { cmd: 'dpkg -l | grep package', desc: 'Check if a package is installed (Debian/Ubuntu)' },
+      { cmd: 'dpkg -L package', desc: 'List files installed by a package' },
+      { cmd: 'dnf update -y', desc: 'Update all packages (RHEL/Fedora)' },
+      { cmd: 'dnf install -y package', desc: 'Install a package (RHEL/Fedora)' },
+      { cmd: 'rpm -qa | grep package', desc: 'Check if package is installed (RPM-based)' },
+      { cmd: 'rpm -ql package', desc: 'List files installed by an RPM package' },
+      { cmd: 'snap list', desc: 'List installed snap packages' },
+      { cmd: 'apt-cache search keyword', desc: 'Search for packages matching keyword' },
+      { cmd: 'apt-cache show package', desc: 'Show detailed info about a package' },
+    ]
+  },
+  {
+    id: 'systemd',
+    title: 'Systemd & Services',
+    icon: 'SD',
+    iconClass: 'icon-systemd',
+    cat: 'systemd',
+    cmds: [
+      { cmd: 'systemctl status nginx', desc: 'Check status of a service' },
+      { cmd: 'systemctl start nginx', desc: 'Start a service' },
+      { cmd: 'systemctl stop nginx', desc: 'Stop a service' },
+      { cmd: 'systemctl restart nginx', desc: 'Restart a service' },
+      { cmd: 'systemctl reload nginx', desc: 'Reload service config without restart' },
+      { cmd: 'systemctl enable --now nginx', desc: 'Enable at boot and start immediately' },
+      { cmd: 'systemctl disable nginx', desc: 'Disable service from starting at boot' },
+      { cmd: 'systemctl is-active nginx', desc: 'Check if a service is running' },
+      { cmd: 'systemctl is-enabled nginx', desc: 'Check if service is enabled at boot' },
+      { cmd: 'systemctl list-units --type=service', desc: 'List all running services' },
+      { cmd: 'systemctl list-units --state=failed', desc: 'List all failed services' },
+      { cmd: 'systemctl daemon-reload', desc: 'Reload unit files after changes' },
+      { cmd: 'systemctl edit nginx', desc: 'Edit a service override (drop-in)' },
+      { cmd: 'journalctl -u nginx -f', desc: 'Follow logs for a specific service' },
+      { cmd: 'journalctl -u nginx -n 100', desc: 'Show last 100 log lines for a service' },
+      { cmd: 'journalctl -b', desc: 'Show logs since last boot' },
+      { cmd: 'journalctl -b -1', desc: 'Show logs from the previous boot' },
+      { cmd: 'journalctl --since "1 hour ago"', desc: 'Show logs from the last hour' },
+      { cmd: 'journalctl -p err', desc: 'Show only error-level log entries' },
+      { cmd: 'systemd-analyze blame', desc: 'Show which services slowed boot' },
+      { cmd: 'systemd-analyze critical-chain', desc: 'Show boot critical path' },
+      { cmd: 'systemctl list-timers', desc: 'List all active systemd timers' },
+    ]
+  },
+  {
+    id: 'networking',
+    title: 'Networking',
+    icon: 'NW',
+    iconClass: 'icon-network',
+    cat: 'networking',
+    cmds: [
+      { cmd: 'ip a', desc: 'Show all network interfaces and IPs' },
+      { cmd: 'ip r', desc: 'Show routing table' },
+      { cmd: 'ip route show default', desc: 'Show default gateway and interface' },
+      { cmd: 'ip link set eth0 up', desc: 'Bring a network interface up' },
+      { cmd: 'ip link set eth0 down', desc: 'Bring a network interface down' },
+      { cmd: 'ip addr add 192.168.1.10/24 dev eth0', desc: 'Add an IP address to an interface' },
+      { cmd: 'ss -tlnp', desc: 'Show TCP listening ports with process names' },
+      { cmd: 'ss -tulnp', desc: 'Show all listening ports (TCP+UDP) with processes' },
+      { cmd: 'ping -c 4 8.8.8.8', desc: 'Ping Google DNS 4 times' },
+      { cmd: 'traceroute 8.8.8.8', desc: 'Trace network path to destination' },
+      { cmd: 'mtr 8.8.8.8', desc: 'Live traceroute with packet loss stats' },
+      { cmd: 'nmap -sV -p 22,80,443 host', desc: 'Scan specific ports and detect versions' },
+      { cmd: 'nmap -sn 192.168.1.0/24', desc: 'Ping scan entire subnet (host discovery)' },
+      { cmd: 'curl -I https://example.com', desc: 'Fetch HTTP headers only' },
+      { cmd: 'curl -v https://example.com', desc: 'Verbose HTTP request (shows TLS handshake)' },
+      { cmd: 'curl ifconfig.me', desc: 'Show your public IP address' },
+      { cmd: 'dig example.com A', desc: 'Query A record for a domain' },
+      { cmd: 'dig example.com MX', desc: 'Query MX records for a domain' },
+      { cmd: 'dig @1.1.1.1 example.com', desc: 'Query specific DNS server' },
+      { cmd: 'host example.com', desc: 'Simple DNS lookup' },
+      { cmd: 'nslookup example.com', desc: 'DNS lookup (cross-platform)' },
+      { cmd: 'arp -a', desc: 'Show ARP table (IP to MAC mappings)' },
+      { cmd: 'ethtool eth0', desc: 'Show Ethernet interface settings and status' },
+      { cmd: 'tcpdump -i eth0 port 80', desc: 'Capture HTTP traffic on eth0' },
+      { cmd: 'tcpdump -i any -w capture.pcap', desc: 'Capture all traffic to a file' },
+      { cmd: 'nc -zv host 22', desc: 'Test if port 22 is open on a host' },
+      { cmd: 'wget -q --spider https://example.com', desc: 'Check if a URL is reachable' },
+      { cmd: 'iperf3 -s', desc: 'Start iperf3 server for bandwidth testing' },
+      { cmd: 'iperf3 -c serverip', desc: 'Run iperf3 bandwidth test to server' },
+    ]
+  },
+  {
+    id: 'firewall',
+    title: 'Firewall (UFW / iptables / firewalld)',
+    icon: 'FW',
+    iconClass: 'icon-firewall',
+    cat: 'firewall',
+    cmds: [
+      { cmd: 'ufw status verbose', desc: 'Show UFW firewall status and rules' },
+      { cmd: 'ufw enable', desc: 'Enable UFW firewall' },
+      { cmd: 'ufw disable', desc: 'Disable UFW firewall' },
+      { cmd: 'ufw allow 22/tcp', desc: 'Allow SSH (TCP port 22)' },
+      { cmd: 'ufw allow 51820/udp', desc: 'Allow WireGuard (UDP port 51820)' },
+      { cmd: 'ufw deny 23/tcp', desc: 'Block Telnet' },
+      { cmd: 'ufw delete allow 80/tcp', desc: 'Remove a UFW rule' },
+      { cmd: 'ufw allow from 192.168.1.0/24', desc: 'Allow all traffic from a subnet' },
+      { cmd: 'iptables -L -n -v', desc: 'List all iptables rules with packet counts' },
+      { cmd: 'iptables -t nat -L -n', desc: 'Show NAT rules (masquerade, DNAT, SNAT)' },
+      { cmd: 'iptables -A INPUT -p tcp --dport 80 -j ACCEPT', desc: 'Allow inbound TCP port 80' },
+      { cmd: 'iptables -A INPUT -s 10.0.0.0/8 -j DROP', desc: 'Drop all traffic from 10.x.x.x network' },
+      { cmd: 'iptables-save > /etc/iptables/rules.v4', desc: 'Save iptables rules to file' },
+      { cmd: 'iptables-restore < /etc/iptables/rules.v4', desc: 'Restore iptables rules from file' },
+      { cmd: 'firewall-cmd --list-all', desc: 'Show all firewalld rules (RHEL/Fedora)' },
+      { cmd: 'firewall-cmd --permanent --add-port=80/tcp', desc: 'Permanently allow port 80 (firewalld)' },
+      { cmd: 'firewall-cmd --reload', desc: 'Apply firewalld permanent rule changes' },
+      { cmd: 'firewall-cmd --zone=public --list-ports', desc: 'List open ports in the public zone' },
+    ]
+  },
+  {
+    id: 'windows',
+    title: 'Windows (CMD / PowerShell)',
+    icon: 'WIN',
+    iconClass: 'icon-windows',
+    cat: 'windows',
+    cmds: [
+      { cmd: 'Get-ComputerInfo', desc: 'Show detailed computer/OS information' },
+      { cmd: 'systeminfo', desc: 'Show system information (CMD)' },
+      { cmd: 'Get-Process | Sort-Object CPU -Descending | Select -First 10', desc: 'Top 10 processes by CPU usage' },
+      { cmd: 'Get-Process | Sort-Object WorkingSet -Descending | Select -First 10', desc: 'Top 10 processes by memory usage' },
+      { cmd: 'Stop-Process -Name processname -Force', desc: 'Force kill a process by name' },
+      { cmd: 'Get-Service | Where-Object {$_.Status -eq "Running"}', desc: 'List all running services' },
+      { cmd: 'Get-Service -Name wuauserv | Restart-Service', desc: 'Restart Windows Update service' },
+      { cmd: 'Start-Service -Name servicename', desc: 'Start a service' },
+      { cmd: 'Stop-Service -Name servicename', desc: 'Stop a service' },
+      { cmd: 'Set-Service -Name servicename -StartupType Automatic', desc: 'Set service to start automatically' },
+      { cmd: 'Get-EventLog -LogName System -Newest 50 -EntryType Error', desc: 'Show last 50 system errors' },
+      { cmd: 'Get-WinEvent -LogName Security -MaxEvents 20', desc: 'Show last 20 security log events' },
+      { cmd: 'Get-Disk', desc: 'Show all disks and their status' },
+      { cmd: 'Get-Volume', desc: 'Show all volumes and disk usage' },
+      { cmd: 'Get-PSDrive -PSProvider FileSystem', desc: 'Show drive space for all drives' },
+      { cmd: 'ipconfig /all', desc: 'Show all network adapter details' },
+      { cmd: 'ipconfig /flushdns', desc: 'Flush the DNS resolver cache' },
+      { cmd: 'Test-NetConnection -ComputerName host -Port 443', desc: 'Test TCP connectivity to a host/port' },
+      { cmd: 'netstat -ano | findstr :80', desc: 'Find what is using port 80' },
+      { cmd: 'Get-NetTCPConnection | Where-Object State -eq "Listen"', desc: 'Show all listening TCP ports' },
+      { cmd: 'Resolve-DnsName example.com', desc: 'DNS lookup in PowerShell' },
+      { cmd: 'sfc /scannow', desc: 'Scan and repair protected system files' },
+      { cmd: 'DISM /Online /Cleanup-Image /RestoreHealth', desc: 'Repair Windows component store' },
+      { cmd: 'Get-HotFix | Sort-Object InstalledOn -Descending', desc: 'Show installed Windows updates' },
+      { cmd: 'winrm quickconfig', desc: 'Configure WinRM for remote management' },
+      { cmd: 'Get-LocalUser', desc: 'List all local user accounts' },
+      { cmd: 'New-LocalUser -Name "user" -Password (Read-Host -AsSecureString)', desc: 'Create a local user account' },
+      { cmd: 'Add-LocalGroupMember -Group "Administrators" -Member "user"', desc: 'Add user to local Administrators group' },
+      { cmd: 'Get-LocalGroupMember -Group "Administrators"', desc: 'List members of local Administrators group' },
+      { cmd: 'wevtutil cl System', desc: 'Clear the System event log (CMD)' },
+      { cmd: 'shutdown /r /t 0', desc: 'Restart immediately (CMD)' },
+      { cmd: 'Restart-Computer -Force', desc: 'Restart immediately (PowerShell)' },
+    ]
+  },
+  {
+    id: 'activedirectory',
+    title: 'Active Directory (PowerShell)',
+    icon: 'AD',
+    iconClass: 'icon-ad',
+    cat: 'activedirectory',
+    cmds: [
+      { cmd: 'Get-ADUser -Identity username', desc: 'Get details for an AD user' },
+      { cmd: 'Get-ADUser -Filter * -Properties * | Select Name,Enabled,LastLogonDate', desc: 'List all users with enabled status and last logon' },
+      { cmd: 'Get-ADUser -Filter {Enabled -eq $false}', desc: 'List all disabled user accounts' },
+      { cmd: 'Get-ADUser -Filter {LastLogonDate -lt (Get-Date).AddDays(-90)}', desc: 'Find users who haven\'t logged in for 90+ days' },
+      { cmd: 'New-ADUser -Name "John Smith" -SamAccountName jsmith -Enabled $true', desc: 'Create a new AD user account' },
+      { cmd: 'Set-ADAccountPassword -Identity jsmith -Reset -NewPassword (Read-Host -AsSecureString)', desc: 'Reset an AD user password' },
+      { cmd: 'Unlock-ADAccount -Identity jsmith', desc: 'Unlock a locked-out AD account' },
+      { cmd: 'Disable-ADAccount -Identity jsmith', desc: 'Disable an AD user account' },
+      { cmd: 'Enable-ADAccount -Identity jsmith', desc: 'Enable an AD user account' },
+      { cmd: 'Remove-ADUser -Identity jsmith', desc: 'Delete an AD user account' },
+      { cmd: 'Get-ADGroupMember -Identity "Domain Admins"', desc: 'List members of Domain Admins group' },
+      { cmd: 'Add-ADGroupMember -Identity "GroupName" -Members jsmith', desc: 'Add user to an AD group' },
+      { cmd: 'Remove-ADGroupMember -Identity "GroupName" -Members jsmith', desc: 'Remove user from an AD group' },
+      { cmd: 'Get-ADGroup -Filter * | Where-Object Name -like "*admin*"', desc: 'Find AD groups matching "admin"' },
+      { cmd: 'Get-ADComputer -Filter * -Properties LastLogonDate | Select Name,LastLogonDate', desc: 'List all computers with last logon' },
+      { cmd: 'Get-ADComputer -Filter {Enabled -eq $false}', desc: 'List all disabled computer accounts' },
+      { cmd: 'Test-ComputerSecureChannel -Repair', desc: 'Repair broken domain trust for this machine' },
+      { cmd: 'gpupdate /force', desc: 'Force Group Policy update immediately' },
+      { cmd: 'gpresult /R', desc: 'Show applied Group Policy for current user/computer' },
+      { cmd: 'gpresult /H gpo-report.html', desc: 'Generate full GPO report as HTML' },
+      { cmd: 'Get-GPO -All | Select DisplayName,GpoStatus', desc: 'List all GPOs and their status' },
+      { cmd: 'dcdiag /test:replications', desc: 'Test AD replication health' },
+      { cmd: 'repadmin /replsummary', desc: 'Show replication summary for all DCs' },
+      { cmd: 'repadmin /showrepl', desc: 'Show detailed replication status' },
+      { cmd: 'nltest /dsgetsite', desc: 'Show which AD site this machine belongs to' },
+      { cmd: 'nltest /dclist:domain.com', desc: 'List all domain controllers' },
+      { cmd: 'Get-ADDomain', desc: 'Show AD domain details' },
+      { cmd: 'Get-ADForest', desc: 'Show AD forest details and domains' },
+      { cmd: 'Search-ADAccount -LockedOut', desc: 'Find all locked-out accounts' },
+      { cmd: 'Search-ADAccount -AccountExpired', desc: 'Find all expired accounts' },
+      { cmd: 'Set-ADUser -Identity jsmith -Department "IT" -Title "Sysadmin"', desc: 'Update user attributes' },
+      { cmd: 'Move-ADObject -Identity "CN=jsmith,CN=Users,DC=domain,DC=com" -TargetPath "OU=IT,DC=domain,DC=com"', desc: 'Move user to a different OU' },
+    ]
+  },
+  {
+    id: 'exchange',
+    title: 'Exchange / Exchange Online',
+    icon: 'EX',
+    iconClass: 'icon-exchange',
+    cat: 'exchange',
+    cmds: [
+      { cmd: 'Get-Mailbox -Identity user@domain.com', desc: 'Get mailbox details for a user' },
+      { cmd: 'Get-Mailbox -ResultSize Unlimited | Select DisplayName,PrimarySmtpAddress', desc: 'List all mailboxes' },
+      { cmd: 'Get-MailboxStatistics -Identity user@domain.com | Select TotalItemSize,ItemCount', desc: 'Show mailbox size and item count' },
+      { cmd: 'New-Mailbox -Name "John Smith" -UserPrincipalName jsmith@domain.com', desc: 'Create a new mailbox' },
+      { cmd: 'Disable-Mailbox -Identity user@domain.com', desc: 'Disable a mailbox (keeps AD account)' },
+      { cmd: 'Remove-Mailbox -Identity user@domain.com', desc: 'Delete a mailbox and AD account' },
+      { cmd: 'Set-Mailbox -Identity user@domain.com -ProhibitSendQuota 10GB -IssueWarningQuota 9GB', desc: 'Set mailbox size limits' },
+      { cmd: 'Add-MailboxPermission -Identity shared@domain.com -User jsmith -AccessRights FullAccess', desc: 'Grant Full Access to a shared mailbox' },
+      { cmd: 'Add-RecipientPermission -Identity shared@domain.com -Trustee jsmith -AccessRights SendAs', desc: 'Grant Send As permission' },
+      { cmd: 'Get-MailboxPermission -Identity shared@domain.com', desc: 'Show all permissions on a mailbox' },
+      { cmd: 'Get-DistributionGroup -Identity "GroupName"', desc: 'Get details about a distribution group' },
+      { cmd: 'Get-DistributionGroupMember -Identity "GroupName"', desc: 'List members of a distribution group' },
+      { cmd: 'Add-DistributionGroupMember -Identity "GroupName" -Member user@domain.com', desc: 'Add member to distribution group' },
+      { cmd: 'New-DistributionGroup -Name "IT Team" -PrimarySmtpAddress it@domain.com', desc: 'Create a new distribution group' },
+      { cmd: 'Set-MailboxAutoReplyConfiguration -Identity user@domain.com -AutoReplyState Enabled', desc: 'Enable Out of Office for a mailbox' },
+      { cmd: 'Get-MessageTrackingLog -Sender user@domain.com -Start (Get-Date).AddDays(-1)', desc: 'Trace emails sent by a user in last 24h' },
+      { cmd: 'Get-MessageTrace -SenderAddress user@domain.com -StartDate (Get-Date).AddDays(-1)', desc: 'Trace messages in Exchange Online' },
+      { cmd: 'Get-TransportRule', desc: 'List all mail flow (transport) rules' },
+      { cmd: 'Get-AcceptedDomain', desc: 'List all accepted email domains' },
+      { cmd: 'Test-MAPIConnectivity -Server EXCHSERVER', desc: 'Test MAPI connectivity to Exchange server' },
+      { cmd: 'Get-Queue -Server EXCHSERVER', desc: 'Show mail queues on Exchange server' },
+      { cmd: 'Retry-Queue -Filter {Status -eq "Retry"}', desc: 'Retry all messages in Retry queue' },
+      { cmd: 'Get-MailboxDatabase | Get-MailboxDatabaseCopyStatus', desc: 'Show database copy/DAG replication status' },
+      { cmd: 'Set-Mailbox -Identity user@domain.com -EmailAddresses @{Add="alias@domain.com"}', desc: 'Add an email alias to a mailbox' },
+      { cmd: 'Get-MobileDeviceStatistics -Mailbox user@domain.com', desc: 'Show mobile devices syncing to mailbox' },
+      { cmd: 'Remove-MobileDevice -Identity "DeviceID"', desc: 'Remove a mobile device partnership' },
+    ]
+  },
+  {
+    id: 'docker',
+    title: 'Docker & Containers',
+    icon: 'DK',
+    iconClass: 'icon-docker',
+    cat: 'docker',
+    cmds: [
+      { cmd: 'docker ps', desc: 'List running containers' },
+      { cmd: 'docker ps -a', desc: 'List all containers (including stopped)' },
+      { cmd: 'docker images', desc: 'List all local images' },
+      { cmd: 'docker pull nginx:latest', desc: 'Pull latest nginx image from Docker Hub' },
+      { cmd: 'docker run -d -p 80:80 --name web nginx', desc: 'Run nginx container in background on port 80' },
+      { cmd: 'docker run -it ubuntu:22.04 bash', desc: 'Run interactive Ubuntu container with bash' },
+      { cmd: 'docker stop container_name', desc: 'Gracefully stop a container' },
+      { cmd: 'docker kill container_name', desc: 'Force kill a container' },
+      { cmd: 'docker rm container_name', desc: 'Remove a stopped container' },
+      { cmd: 'docker rm -f container_name', desc: 'Force remove a running container' },
+      { cmd: 'docker rmi image_name', desc: 'Remove an image' },
+      { cmd: 'docker exec -it container_name bash', desc: 'Open shell in running container' },
+      { cmd: 'docker logs container_name', desc: 'Show container logs' },
+      { cmd: 'docker logs -f container_name', desc: 'Follow container logs in real time' },
+      { cmd: 'docker inspect container_name', desc: 'Show detailed container configuration' },
+      { cmd: 'docker stats', desc: 'Live CPU/memory stats for all containers' },
+      { cmd: 'docker volume ls', desc: 'List all Docker volumes' },
+      { cmd: 'docker volume prune', desc: 'Remove all unused volumes' },
+      { cmd: 'docker network ls', desc: 'List all Docker networks' },
+      { cmd: 'docker system prune -a', desc: 'Remove all stopped containers, unused images and volumes' },
+      { cmd: 'docker compose up -d', desc: 'Start all services defined in docker-compose.yml' },
+      { cmd: 'docker compose down', desc: 'Stop and remove compose containers' },
+      { cmd: 'docker compose logs -f', desc: 'Follow logs for all compose services' },
+      { cmd: 'docker compose pull', desc: 'Pull latest images for all compose services' },
+      { cmd: 'docker compose restart service_name', desc: 'Restart a specific compose service' },
+      { cmd: 'docker build -t myapp:latest .', desc: 'Build image from Dockerfile in current dir' },
+      { cmd: 'docker cp file.txt container_name:/path/', desc: 'Copy file into a running container' },
+      { cmd: 'docker save myapp | gzip > myapp.tar.gz', desc: 'Export image to a compressed tar file' },
+    ]
+  },
+  {
+    id: 'git',
+    title: 'Git',
+    icon: 'GT',
+    iconClass: 'icon-git',
+    cat: 'git',
+    cmds: [
+      { cmd: 'git status', desc: 'Show working tree status' },
+      { cmd: 'git log --oneline -20', desc: 'Show last 20 commits (compact)' },
+      { cmd: 'git diff', desc: 'Show unstaged changes' },
+      { cmd: 'git diff --staged', desc: 'Show staged changes ready to commit' },
+      { cmd: 'git add -A', desc: 'Stage all changes (new, modified, deleted)' },
+      { cmd: 'git commit -m "message"', desc: 'Commit staged changes with message' },
+      { cmd: 'git push origin main', desc: 'Push commits to remote main branch' },
+      { cmd: 'git pull', desc: 'Fetch and merge changes from remote' },
+      { cmd: 'git clone https://github.com/user/repo.git', desc: 'Clone a repository' },
+      { cmd: 'git branch', desc: 'List local branches' },
+      { cmd: 'git checkout -b feature-branch', desc: 'Create and switch to new branch' },
+      { cmd: 'git merge feature-branch', desc: 'Merge a branch into current branch' },
+      { cmd: 'git branch -d feature-branch', desc: 'Delete a merged branch' },
+      { cmd: 'git stash', desc: 'Stash current uncommitted changes' },
+      { cmd: 'git stash pop', desc: 'Apply and remove most recent stash' },
+      { cmd: 'git reset --hard HEAD', desc: 'Discard all local changes (CAUTION)' },
+      { cmd: 'git reset --soft HEAD~1', desc: 'Undo last commit but keep changes staged' },
+      { cmd: 'git revert HEAD', desc: 'Create a new commit that undoes last commit' },
+      { cmd: 'git remote -v', desc: 'Show remote repository URLs' },
+      { cmd: 'git tag v1.0.0', desc: 'Create a lightweight tag' },
+      { cmd: 'git shortlog -sn', desc: 'Show commit count by author' },
+      { cmd: 'git blame filename', desc: 'Show who last edited each line of a file' },
+    ]
+  },
+  {
+    id: 'vim',
+    title: 'Vim',
+    icon: 'VI',
+    iconClass: 'icon-vim',
+    cat: 'vim',
+    cmds: [
+      { cmd: ':w', desc: 'Save file' },
+      { cmd: ':q', desc: 'Quit (fails if unsaved changes)' },
+      { cmd: ':wq', desc: 'Save and quit' },
+      { cmd: ':q!', desc: 'Quit without saving (force)' },
+      { cmd: 'i', desc: 'Enter insert mode (before cursor)' },
+      { cmd: 'a', desc: 'Enter insert mode (after cursor)' },
+      { cmd: 'o', desc: 'Insert new line below and enter insert mode' },
+      { cmd: 'Esc', desc: 'Return to normal mode from insert mode' },
+      { cmd: 'dd', desc: 'Delete (cut) entire line' },
+      { cmd: 'yy', desc: 'Yank (copy) entire line' },
+      { cmd: 'p', desc: 'Paste after cursor' },
+      { cmd: 'u', desc: 'Undo last change' },
+      { cmd: 'Ctrl+r', desc: 'Redo' },
+      { cmd: '/searchterm', desc: 'Search forward for a term' },
+      { cmd: 'n', desc: 'Jump to next search match' },
+      { cmd: 'N', desc: 'Jump to previous search match' },
+      { cmd: ':%s/old/new/g', desc: 'Replace all occurrences of "old" with "new"' },
+      { cmd: ':set number', desc: 'Show line numbers' },
+      { cmd: 'gg', desc: 'Go to first line' },
+      { cmd: 'G', desc: 'Go to last line' },
+      { cmd: ':42', desc: 'Go to line 42' },
+      { cmd: 'dw', desc: 'Delete word from cursor' },
+      { cmd: 'ciw', desc: 'Change inner word (delete word and enter insert)' },
+      { cmd: 'V', desc: 'Enter visual line mode (select whole lines)' },
+      { cmd: ':syntax on', desc: 'Enable syntax highlighting' },
+    ]
+  },
+];
+
+// ─────────────────────────────────────────
+// APP STATE
+// ─────────────────────────────────────────
+let activeCat = 'all';
+let searchQuery = '';
+
+// ─────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────
+function render() {
+  const q = searchQuery.toLowerCase().trim();
+  const container = document.getElementById('cs-sections');
+  const empty = document.getElementById('cs-empty');
+  const stats = document.getElementById('cs-stats');
+
+  let totalVisible = 0;
+  let html = '';
+
+  for (const section of SECTIONS) {
+    // Category filter
+    if (activeCat !== 'all' && section.cat !== activeCat) continue;
+
+    // Filter commands by search
+    const filtered = section.cmds.filter(c => {
+      if (!q) return true;
+      return c.cmd.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q);
+    });
+
+    if (filtered.length === 0) continue;
+    totalVisible += filtered.length;
+
+    const cmdsHtml = filtered.map(c => {
+      const cmdHl = q ? highlight(c.cmd, q) : escHtml(c.cmd);
+      const descHl = q ? highlight(c.desc, q) : escHtml(c.desc);
+      return `<div class="cs-cmd" onclick="copyCmd(this, '${escAttr(c.cmd)}')" title="${escAttr(c.cmd)}">
+        <div class="cs-cmd-left">
+          <div class="cs-cmd-code">${cmdHl}</div>
+          <div class="cs-cmd-desc">${descHl}</div>
+        </div>
+        <div class="cs-cmd-copy">copy</div>
+      </div>`;
+    }).join('');
+
+    html += `<div class="cs-section" data-cat="${section.cat}">
+      <div class="cs-section-header">
+        <div class="cs-section-icon ${section.iconClass}">${section.icon}</div>
+        <div class="cs-section-title">${section.title}</div>
+        <div class="cs-section-count">${filtered.length} cmd${filtered.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="cs-grid">${cmdsHtml}</div>
+    </div>`;
+  }
+
+  container.innerHTML = html;
+
+  const totalAll = SECTIONS.reduce((a, s) => a + s.cmds.length, 0);
+  stats.innerHTML = `Showing <span>${totalVisible}</span> of <span>${totalAll}</span> commands`;
+
+  empty.classList.toggle('visible', totalVisible === 0);
+}
+
+// ─────────────────────────────────────────
+// COPY
+// ─────────────────────────────────────────
+function copyCmd(el, cmd) {
+  navigator.clipboard.writeText(cmd).then(() => {
+    el.classList.add('copied');
+    el.querySelector('.cs-cmd-copy').textContent = 'copied!';
+    setTimeout(() => {
+      el.classList.remove('copied');
+      el.querySelector('.cs-cmd-copy').textContent = 'copy';
+    }, 1500);
+  }).catch(() => {
+    // Fallback for browsers without clipboard API
+    const ta = document.createElement('textarea');
+    ta.value = cmd;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    el.classList.add('copied');
+    el.querySelector('.cs-cmd-copy').textContent = 'copied!';
+    setTimeout(() => {
+      el.classList.remove('copied');
+      el.querySelector('.cs-cmd-copy').textContent = 'copy';
+    }, 1500);
+  });
+}
+
+// ─────────────────────────────────────────
+// FILTER PILLS
+// ─────────────────────────────────────────
+document.getElementById('cs-filters').addEventListener('click', e => {
+  const btn = e.target.closest('.cs-filter');
+  if (!btn) return;
+  activeCat = btn.dataset.cat;
+  document.querySelectorAll('.cs-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+});
+
+// ─────────────────────────────────────────
+// SEARCH
+// ─────────────────────────────────────────
+document.getElementById('cs-search').addEventListener('input', e => {
+  searchQuery = e.target.value;
+  // If typing, reset to all categories
+  if (searchQuery && activeCat !== 'all') {
+    activeCat = 'all';
+    document.querySelectorAll('.cs-filter').forEach(b => b.classList.remove('active'));
+    document.querySelector('.cs-filter[data-cat="all"]').classList.add('active');
+  }
+  render();
+});
+
+// ─────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────
+function highlight(str, q) {
+  if (!q) return escHtml(str);
+  const escaped = escHtml(str);
+  const escapedQ = escHtml(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return escaped.replace(new RegExp(escapedQ, 'gi'), m => `<span class="hl">${m}</span>`);
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function escAttr(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>
