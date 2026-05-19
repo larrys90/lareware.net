@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud Service Status Dashboard — Lareware</title>
+  <meta name="description" content="Live status dashboard for major cloud services. Check if AWS, Azure, Google Cloud, Microsoft 365, GitHub, Cloudflare, Slack, Zoom, and more are up or experiencing issues.">
+  <link rel="canonical" href="https://lareware.net/tools/cloud-status.html">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3852731075404476" crossorigin="anonymous"></script>
+  <style>
+    .status-container { max-width: 960px; margin: 0 auto; }
+
+    /* Top bar */
+    .status-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .overall-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+    .overall-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+    .overall-dot.operational { background: var(--accent); box-shadow: 0 0 8px rgba(0,229,153,0.45); }
+    .overall-dot.degraded { background: var(--orange); box-shadow: 0 0 8px rgba(245,158,11,0.45); animation: pulse 2s ease-in-out infinite; }
+    .overall-dot.outage { background: var(--red); box-shadow: 0 0 8px rgba(239,68,68,0.45); animation: pulse 2s ease-in-out infinite; }
+    .overall-label { font-weight: 600; font-size: 0.95rem; }
+    .topbar-right { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .last-updated-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+    .refresh-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 0.45rem 0.9rem;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.2s;
+    }
+    .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Section label */
+    .status-section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      margin: 2rem 0 0.75rem;
+    }
+
+    /* Grid */
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 0.65rem;
+    }
+
+    /* Card */
+    .status-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      transition: border-color 0.3s;
+    }
+    .status-card.operational { border-color: rgba(0,229,153,0.22); }
+    .status-card.degraded { border-color: rgba(245,158,11,0.38); }
+    .status-card.outage { border-color: rgba(239,68,68,0.38); }
+    .status-card.maintenance { border-color: rgba(59,130,246,0.3); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 0.65rem;
+    }
+    .svc-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      letter-spacing: -0.02em;
+    }
+    .svc-icon.orange { background: var(--orange-dim); color: var(--orange); }
+    .svc-icon.blue { background: var(--accent2-dim); color: var(--accent2); }
+    .svc-icon.green { background: var(--accent-dim); color: var(--accent); }
+    .svc-icon.purple { background: rgba(139,92,246,0.1); color: #a78bfa; }
+    .svc-icon.pink { background: rgba(236,72,153,0.1); color: #f472b6; }
+    .svc-icon.teal { background: rgba(20,184,166,0.1); color: #2dd4bf; }
+
+    .svc-name { font-weight: 600; font-size: 0.88rem; line-height: 1.2; }
+    .svc-type {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.1rem;
+    }
+
+    .card-status {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-bottom: 0.6rem;
+      min-height: 18px;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--border);
+    }
+    .status-dot.operational { background: var(--accent); }
+    .status-dot.degraded { background: var(--orange); animation: pulse 2s ease-in-out infinite; }
+    .status-dot.outage { background: var(--red); animation: pulse 2s ease-in-out infinite; }
+    .status-dot.maintenance { background: var(--accent2); }
+    .status-dot.error { background: var(--text-muted); }
+
+    .status-desc {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.71rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    .status-desc.operational { color: var(--accent); }
+    .status-desc.degraded { color: var(--orange); }
+    .status-desc.outage { color: var(--red); }
+    .status-desc.maintenance { color: var(--accent2); }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--text-muted);
+    }
+    .card-link {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--accent2);
+      text-decoration: none;
+      transition: color 0.2s;
+      white-space: nowrap;
+    }
+    .card-link:hover { color: var(--text); }
+
+    /* Link-only card */
+    .link-notice {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+      margin-bottom: 0.7rem;
+    }
+    .check-status-btn {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.35rem 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .check-status-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border: 1.5px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+    @media (max-width: 640px) {
+      .status-grid { grid-template-columns: 1fr 1fr; }
+      .status-topbar { flex-direction: column; align-items: flex-start; }
+    }
+    @media (max-width: 380px) {
+      .status-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<header class="article-header">
+  <div class="guide-cat">Tool</div>
+  <h1>Cloud Service Status</h1>
+  <p style="color: var(--text-muted); margin-top: 0.5rem;">Live status for major cloud providers, dev tools, and SaaS platforms. Monitored services are checked in real time directly from your browser. Auto-refreshes every 5 minutes.</p>
+</header>
+
+<section class="section" style="padding-top: 0;">
+  <div class="status-container">
+
+    <!-- Top bar -->
+    <div class="status-topbar">
+      <div class="overall-indicator">
+        <div class="overall-dot" id="overall-dot"></div>
+        <span class="overall-label" id="overall-label">Checking services…</span>
+      </div>
+      <div class="topbar-right">
+        <span class="last-updated-label" id="last-updated"></span>
+        <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- Sections rendered by JS -->
+    <div id="status-sections"></div>
+
+  </div>
+</section>
+
+<div class="article-body">
+  <div class="ad-placeholder">[ ad placement ]</div>
+
+  <h2>How This Works</h2>
+  <p>Services that publish a public status API are queried directly from your browser — no proxy, no intermediary. Data comes from each service's official status endpoint, so it's as fresh as their own status page.</p>
+  <p>AWS, Azure, Google Cloud, and Microsoft 365 don't expose CORS-accessible public APIs that can be read from a browser. These link directly to their official status dashboards instead.</p>
+
+  <h2>Status Indicators</h2>
+  <table>
+    <thead><tr><th>Indicator</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>● Operational</td><td>All systems functioning normally</td></tr>
+      <tr><td>● Degraded</td><td>Some components experiencing slowness or partial issues</td></tr>
+      <tr><td>● Outage</td><td>Significant disruption affecting many users</td></tr>
+      <tr><td>● Maintenance</td><td>Planned maintenance window in progress</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Official Status Pages</h2>
+  <table>
+    <thead><tr><th>Service</th><th>Status Page</th></tr></thead>
+    <tbody>
+      <tr><td>Amazon Web Services</td><td><a href="https://health.aws.amazon.com/health/status" target="_blank" rel="noopener">health.aws.amazon.com</a></td></tr>
+      <tr><td>Microsoft Azure</td><td><a href="https://status.azure.com/en-us/status" target="_blank" rel="noopener">status.azure.com</a></td></tr>
+      <tr><td>Google Cloud</td><td><a href="https://status.cloud.google.com/" target="_blank" rel="noopener">status.cloud.google.com</a></td></tr>
+      <tr><td>Microsoft 365</td><td><a href="https://status.office365.com/" target="_blank" rel="noopener">status.office365.com</a></td></tr>
+      <tr><td>GitHub</td><td><a href="https://www.githubstatus.com/" target="_blank" rel="noopener">githubstatus.com</a></td></tr>
+      <tr><td>Cloudflare</td><td><a href="https://www.cloudflarestatus.com/" target="_blank" rel="noopener">cloudflarestatus.com</a></td></tr>
+      <tr><td>Slack</td><td><a href="https://status.slack.com/" target="_blank" rel="noopener">status.slack.com</a></td></tr>
+      <tr><td>Zoom</td><td><a href="https://status.zoom.us/" target="_blank" rel="noopener">status.zoom.us</a></td></tr>
+      <tr><td>Atlassian</td><td><a href="https://status.atlassian.com/" target="_blank" rel="noopener">status.atlassian.com</a></td></tr>
+      <tr><td>Datadog</td><td><a href="https://status.datadoghq.com/" target="_blank" rel="noopener">status.datadoghq.com</a></td></tr>
+    </tbody>
+  </table>
+
+  <div class="ad-placeholder">[ ad placement ]</div>
+</div>
+
+<div id="newsletter"></div>
+<div id="footer"></div>
+
+<script src="/js/components.js"></script>
+<script>
+const SECTIONS = [
+  {
+    label: '// major cloud providers',
+    services: [
+      { id: 'aws',   name: 'Amazon Web Services', abbr: 'AWS',  color: 'orange', type: 'link',       statusUrl: 'https://health.aws.amazon.com/health/status' },
+      { id: 'azure', name: 'Microsoft Azure',     abbr: 'AZ',   color: 'blue',   type: 'link',       statusUrl: 'https://status.azure.com/en-us/status' },
+      { id: 'gcp',   name: 'Google Cloud',        abbr: 'GCP',  color: 'blue',   type: 'link',       statusUrl: 'https://status.cloud.google.com/' },
+      { id: 'm365',  name: 'Microsoft 365',       abbr: 'M365', color: 'blue',   type: 'link',       statusUrl: 'https://status.office365.com/' },
+      { id: 'do',    name: 'DigitalOcean',         abbr: 'DO',   color: 'blue',   type: 'statuspage', apiUrl: 'https://status.digitalocean.com/api/v2/status.json', statusUrl: 'https://status.digitalocean.com/' },
+    ]
+  },
+  {
+    label: '// infrastructure & cdn',
+    services: [
+      { id: 'cloudflare', name: 'Cloudflare', abbr: 'CF',  color: 'orange', type: 'statuspage', apiUrl: 'https://www.cloudflarestatus.com/api/v2/status.json',  statusUrl: 'https://www.cloudflarestatus.com/' },
+      { id: 'fastly',     name: 'Fastly',     abbr: 'FST', color: 'pink',   type: 'statuspage', apiUrl: 'https://status.fastly.com/api/v2/status.json',          statusUrl: 'https://status.fastly.com/' },
+      { id: 'vercel',     name: 'Vercel',     abbr: 'VCL', color: 'teal',   type: 'statuspage', apiUrl: 'https://www.vercelstatus.com/api/v2/status.json',       statusUrl: 'https://www.vercelstatus.com/' },
+    ]
+  },
+  {
+    label: '// developer tools & collaboration',
+    services: [
+      { id: 'github',    name: 'GitHub',    abbr: 'GH',  color: 'purple', type: 'statuspage', apiUrl: 'https://www.githubstatus.com/api/v2/status.json',   statusUrl: 'https://www.githubstatus.com/' },
+      { id: 'atlassian', name: 'Atlassian', abbr: 'ATL', color: 'blue',   type: 'statuspage', apiUrl: 'https://status.atlassian.com/api/v2/status.json',   statusUrl: 'https://status.atlassian.com/' },
+      { id: 'slack',     name: 'Slack',     abbr: 'SLK', color: 'purple', type: 'slack',      apiUrl: 'https://status.slack.com/api/v2.0.0/current',       statusUrl: 'https://status.slack.com/' },
+      { id: 'zoom',      name: 'Zoom',      abbr: 'ZM',  color: 'blue',   type: 'statuspage', apiUrl: 'https://status.zoom.us/api/v2/status.json',         statusUrl: 'https://status.zoom.us/' },
+    ]
+  },
+  {
+    label: '// monitoring & devops',
+    services: [
+      { id: 'datadog',    name: 'Datadog',    abbr: 'DD',  color: 'purple', type: 'statuspage', apiUrl: 'https://status.datadoghq.com/api/v2/status.json',  statusUrl: 'https://status.datadoghq.com/' },
+      { id: 'pagerduty',  name: 'PagerDuty',  abbr: 'PD',  color: 'green',  type: 'statuspage', apiUrl: 'https://status.pagerduty.com/api/v2/status.json',  statusUrl: 'https://status.pagerduty.com/' },
+      { id: 'stripe',     name: 'Stripe',     abbr: 'STR', color: 'blue',   type: 'statuspage', apiUrl: 'https://status.stripe.com/api/v2/status.json',     statusUrl: 'https://status.stripe.com/' },
+      { id: 'twilio',     name: 'Twilio',     abbr: 'TWL', color: 'pink',   type: 'statuspage', apiUrl: 'https://status.twilio.com/api/v2/status.json',     statusUrl: 'https://status.twilio.com/' },
+    ]
+  }
+];
+
+const serviceState = {};
+
+function buildInitialHTML() {
+  const container = document.getElementById('status-sections');
+  let html = '';
+  for (const section of SECTIONS) {
+    html += `<div class="status-section-label">${section.label}</div><div class="status-grid">`;
+    for (const svc of section.services) {
+      serviceState[svc.id] = { state: svc.type === 'link' ? 'link' : 'loading' };
+      html += buildCard(svc);
+    }
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+function buildCard(svc) {
+  if (svc.type === 'link') {
+    return `
+      <div class="status-card" id="card-${svc.id}">
+        <div class="card-header">
+          <div class="svc-icon ${svc.color}">${svc.abbr}</div>
+          <div><div class="svc-name">${svc.name}</div><div class="svc-type">External Dashboard</div></div>
+        </div>
+        <div class="link-notice">No browser-accessible API. Check the official dashboard for current status.</div>
+        <a href="${svc.statusUrl}" target="_blank" rel="noopener" class="check-status-btn">Check Status →</a>
+      </div>`;
+  }
+  return `
+    <div class="status-card" id="card-${svc.id}">
+      <div class="card-header">
+        <div class="svc-icon ${svc.color}">${svc.abbr}</div>
+        <div><div class="svc-name">${svc.name}</div><div class="svc-type">Live Monitor</div></div>
+      </div>
+      <div class="card-status">
+        <span class="spinner" id="dot-${svc.id}"></span>
+        <span class="status-desc" id="desc-${svc.id}">Checking…</span>
+      </div>
+      <div class="card-footer">
+        <span class="card-time" id="time-${svc.id}"></span>
+        <a href="${svc.statusUrl}" target="_blank" rel="noopener" class="card-link">status page →</a>
+      </div>
+    </div>`;
+}
+
+function updateCard(svc, state, description, fetchTime) {
+  const card = document.getElementById(`card-${svc.id}`);
+  const dotEl = document.getElementById(`dot-${svc.id}`);
+  const descEl = document.getElementById(`desc-${svc.id}`);
+  const timeEl = document.getElementById(`time-${svc.id}`);
+  if (!card || !dotEl) return;
+
+  dotEl.outerHTML = `<div class="status-dot ${state}" id="dot-${svc.id}"></div>`;
+  card.className = `status-card ${state}`;
+  descEl.className = `status-desc ${state}`;
+  descEl.textContent = description;
+  if (timeEl) timeEl.textContent = fetchTime;
+
+  serviceState[svc.id] = { state };
+  updateOverall();
+}
+
+function mapStatuspageIndicator(indicator) {
+  const map = { none: 'operational', minor: 'degraded', major: 'outage', critical: 'outage', maintenance: 'maintenance' };
+  return map[indicator] || 'error';
+}
+
+function mapSlackStatus(status) {
+  const map = { ok: 'operational', warning: 'degraded', active: 'outage', danger: 'outage' };
+  return map[status] || 'error';
+}
+
+async function fetchService(svc) {
+  const fetchTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  try {
+    if (svc.type === 'statuspage') {
+      const res = await fetch(svc.apiUrl, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      updateCard(svc, mapStatuspageIndicator(data.status?.indicator), data.status?.description || 'Unknown', fetchTime);
+    } else if (svc.type === 'slack') {
+      const res = await fetch(svc.apiUrl, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const state = mapSlackStatus(data.status);
+      const desc = state === 'operational' ? 'All Systems Operational' : (data.active_incidents?.[0]?.title || 'Service issues detected');
+      updateCard(svc, state, desc, fetchTime);
+    }
+  } catch {
+    updateCard(svc, 'error', 'Could not load status', fetchTime);
+  }
+}
+
+function updateOverall() {
+  const dot = document.getElementById('overall-dot');
+  const label = document.getElementById('overall-label');
+  const allStates = Object.values(serviceState).map(s => s.state);
+  const liveStates = allStates.filter(s => !['link', 'loading', 'error'].includes(s));
+  const stillLoading = allStates.includes('loading');
+
+  if (stillLoading) {
+    dot.className = 'overall-dot';
+    label.textContent = 'Checking services…';
+    return;
+  }
+  if (liveStates.includes('outage')) {
+    dot.className = 'overall-dot outage';
+    label.textContent = 'Active outage detected';
+  } else if (liveStates.includes('degraded')) {
+    dot.className = 'overall-dot degraded';
+    label.textContent = 'Some services degraded';
+  } else {
+    dot.className = 'overall-dot operational';
+    label.textContent = `${liveStates.length} services monitored — all operational`;
+  }
+}
+
+async function refreshAll() {
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.textContent = '↻ Refreshing…';
+
+  for (const section of SECTIONS) {
+    for (const svc of section.services) {
+      if (svc.type === 'link') continue;
+      serviceState[svc.id] = { state: 'loading' };
+      const dotEl = document.getElementById(`dot-${svc.id}`);
+      if (dotEl) dotEl.outerHTML = `<span class="spinner" id="dot-${svc.id}"></span>`;
+      const descEl = document.getElementById(`desc-${svc.id}`);
+      if (descEl) { descEl.className = 'status-desc'; descEl.textContent = 'Checking…'; }
+      const card = document.getElementById(`card-${svc.id}`);
+      if (card) card.className = 'status-card';
+      const timeEl = document.getElementById(`time-${svc.id}`);
+      if (timeEl) timeEl.textContent = '';
+    }
+  }
+
+  updateOverall();
+
+  const tasks = SECTIONS.flatMap(s => s.services.filter(svc => svc.type !== 'link').map(svc => fetchService(svc)));
+  await Promise.allSettled(tasks);
+
+  const now = new Date();
+  document.getElementById('last-updated').textContent = `Last checked: ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  updateOverall();
+
+  btn.disabled = false;
+  btn.textContent = '↻ Refresh';
+
+  if (autoRefreshTimer) clearTimeout(autoRefreshTimer);
+  autoRefreshTimer = setTimeout(refreshAll, 5 * 60 * 1000);
+}
+
+let autoRefreshTimer = null;
+
+buildInitialHTML();
+refreshAll();
+</script>
+</body>
+</html>
