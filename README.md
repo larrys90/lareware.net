@@ -14,7 +14,7 @@ lareware/
 ├── css/
 │   └── main.css                  # Complete design system
 ├── js/
-│   └── components.js             # Shared nav, footer, newsletter
+│   └── components.js             # Shared nav, footer
 ├── tools/
 │   ├── index.html                # Tools listing page
 │   ├── subnet-calculator.html    # (you'll build these)
@@ -37,12 +37,11 @@ Every page includes three placeholder `<div>`s and one script:
 ```html
 <div id="nav"></div>      <!-- top of body -->
 ...page content...
-<div id="newsletter"></div> <!-- before footer -->
 <div id="footer"></div>     <!-- end of body -->
 <script src="/js/components.js"></script>
 ```
 
-`components.js` injects the shared nav, newsletter, and footer so you only maintain them in one file.
+`components.js` injects the shared nav and footer so you only maintain them in one file.
 
 ## Adding Content
 
@@ -119,5 +118,3 @@ Same idea — connect the repo, no build command, publish directory is `/`.
 - [ ] Set up Amazon Associates account
 - [ ] Add affiliate links in review pages
 - [ ] Set up Google Analytics
-- [ ] Choose newsletter provider (Buttondown, ConvertKit, etc.)
-- [ ] Wire up the subscribe form

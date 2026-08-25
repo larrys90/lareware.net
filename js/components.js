@@ -1,9 +1,8 @@
 /* ============================================
    Lareware — Shared Components
-   Injects nav, footer, and newsletter into pages.
+   Injects nav and footer into pages.
    Each page just needs:
      <div id="nav"></div>        (top of body)
-     <div id="newsletter"></div> (before footer)
      <div id="footer"></div>     (end of body)
    ============================================ */
 
@@ -25,18 +24,6 @@ const COMPONENTS = {
     <input type="text" class="nav-search" placeholder="Search tools & guides..." aria-label="Search">
   </div>
 </nav>`,
-
-  newsletter: `
-<section class="newsletter">
-  <div class="newsletter-box">
-    <h2>Get the weekly sysadmin brief.</h2>
-    <p>One email. New tools, guides, and deals. No spam, ever.</p>
-    <div class="newsletter-form">
-      <input type="email" class="newsletter-input" placeholder="you@example.com" aria-label="Email address">
-      <button class="newsletter-btn">Subscribe</button>
-    </div>
-  </div>
-</section>`,
 
   footer: `
 <footer>
